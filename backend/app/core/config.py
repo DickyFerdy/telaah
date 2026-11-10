@@ -2,9 +2,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "PaperLens"
+    app_name: str = "Telaah"
     environment: str = "development"
-    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/paperlens"
+    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/telaah"
     gemini_api_key: str = ""
     jwt_secret: str = "default_insecure_secret_key_change_in_production"
     jwt_algorithm: str = "HS256"

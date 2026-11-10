@@ -1,4 +1,4 @@
-# PaperLens
+# Telaah
 
 > Asisten riset untuk paper ilmiah: tanya apa saja, jawaban disertai sitasi yang menyorot teks asli di PDF.
 
@@ -6,7 +6,7 @@
 
 ## Masalah yang diselesaikan
 
-Membaca paper berbahasa Inggris itu lambat, terutama untuk mahasiswa. PaperLens membantu memahami isi paper lebih cepat tanpa mengorbankan keandalan: setiap jawaban bisa diverifikasi lewat sitasi, dan sistem menolak menjawab saat informasinya tidak ada di paper.
+Membaca paper berbahasa Inggris itu lambat, terutama untuk mahasiswa. Telaah membantu memahami isi paper lebih cepat tanpa mengorbankan keandalan: setiap jawaban bisa diverifikasi lewat sitasi, dan sistem menolak menjawab saat informasinya tidak ada di paper.
 
 ## Fitur
 
