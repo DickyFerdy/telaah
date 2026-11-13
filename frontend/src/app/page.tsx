@@ -1,18 +1,60 @@
+"use client";
+
+import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
+
 export default function Home() {
+  const { user, isLoading, logout } = useAuth();
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-between">
       <header className="border-b border-slate-200 bg-white/80 backdrop-blur sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-xl font-bold tracking-tight text-blue-600">
+            <Link
+              href="/"
+              className="text-xl font-bold tracking-tight text-blue-600 hover:opacity-90"
+            >
               Telaah
-            </span>
+            </Link>
             <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Fase 0: Setup
+              Fase 1: Auth & Upload
             </span>
           </div>
-          <div className="text-xs text-slate-500 font-mono">
-            Backend API: http://localhost:8000
+
+          <div className="flex items-center gap-4">
+            {!isLoading && (
+              <>
+                {user ? (
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-medium text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
+                      {user.email}
+                    </span>
+                    <button
+                      onClick={logout}
+                      className="text-xs font-medium text-red-600 hover:text-red-700 hover:underline"
+                    >
+                      Keluar
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <Link
+                      href="/login"
+                      className="text-sm font-medium text-slate-600 hover:text-slate-900"
+                    >
+                      Masuk
+                    </Link>
+                    <Link
+                      href="/register"
+                      className="text-sm font-semibold px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
+                    >
+                      Daftar Gratis
+                    </Link>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -38,9 +80,29 @@ export default function Home() {
               ✓ Ringkasan Terstruktur Otomatis
             </span>
           </div>
+
+          <div className="mt-8">
+            {user ? (
+              <div className="inline-flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-900">
+                <span className="font-semibold text-sm">
+                  Selamat datang kembali, {user.email}!
+                </span>
+                <span className="text-xs text-blue-600">
+                  (Fitur upload paper siap dikerjakan di item berikutnya)
+                </span>
+              </div>
+            ) : (
+              <Link
+                href="/register"
+                className="inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-sm transition"
+              >
+                Mulai Sekarang &mdash; Gratis
+              </Link>
+            )}
+          </div>
         </div>
 
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="mt-14 grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="p-6 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition">
             <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold mb-4">
               1
