@@ -9,6 +9,20 @@ export interface User {
   created_at: string;
 }
 
+export interface Paper {
+  id: string;
+  user_id: string;
+  title: string | null;
+  authors: string[] | null;
+  source_type: string | null;
+  source_ref: string | null;
+  file_path: string;
+  status: "uploaded" | "parsing" | "embedding" | "ready" | "failed" | string;
+  error_message: string | null;
+  page_count: number | null;
+  created_at: string;
+}
+
 export interface TokenResponse {
   access_token: string;
   token_type: string;
@@ -100,4 +114,23 @@ export async function getCurrentUser(): Promise<User> {
 export function logoutUser(): void {
   setStoredToken(null);
 }
+
+export async function getPapers(): Promise<Paper[]> {
+  return apiFetch<Paper[]>("/papers");
+}
+
+export async function getPaper(id: string): Promise<Paper> {
+  return apiFetch<Paper>(`/papers/${id}`);
+}
+
+export async function uploadPaper(file: File): Promise<Paper> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  return apiFetch<Paper>("/papers", {
+    method: "POST",
+    body: formData,
+  });
+}
+
 

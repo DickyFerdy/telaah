@@ -129,3 +129,83 @@ async def test_upload_file_exceeds_max_size(client: AsyncClient) -> None:
     assert response.status_code == 413
     assert "melebihi batas maksimal" in response.json()["detail"]
 
+
+@pytest.mark.asyncio
+async def test_list_papers(client: AsyncClient) -> None:
+    token = await get_authenticated_token(client)
+    pdf_content = b"%PDF-1.4 sample content for listing"
+
+    upload_res = await client.post(
+        "/papers",
+        headers={"Authorization": f"Bearer {token}"},
+        files={"file": ("list_test.pdf", io.BytesIO(pdf_content), "application/pdf")},
+    )
+    assert upload_res.status_code == 201
+    paper_id = upload_res.json()["id"]
+
+    list_res = await client.get(
+        "/papers",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert list_res.status_code == 200
+    papers = list_res.json()
+    assert isinstance(papers, list)
+    assert any(p["id"] == paper_id for p in papers)
+
+
+@pytest.mark.asyncio
+async def test_get_paper_by_id(client: AsyncClient) -> None:
+    token = await get_authenticated_token(client)
+    pdf_content = b"%PDF-1.4 sample content for get_by_id"
+
+    upload_res = await client.post(
+        "/papers",
+        headers={"Authorization": f"Bearer {token}"},
+        files={"file": ("detail_test.pdf", io.BytesIO(pdf_content), "application/pdf")},
+    )
+    assert upload_res.status_code == 201
+    paper_id = upload_res.json()["id"]
+
+    detail_res = await client.get(
+        f"/papers/{paper_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert detail_res.status_code == 200
+    data = detail_res.json()
+    assert data["id"] == paper_id
+    assert data["source_ref"] == "detail_test.pdf"
+    assert data["status"] == "uploaded"
+
+
+@pytest.mark.asyncio
+async def test_get_paper_isolation(client: AsyncClient) -> None:
+    # User A uploads a paper
+    token_a = await get_authenticated_token(client)
+    upload_res = await client.post(
+        "/papers",
+        headers={"Authorization": f"Bearer {token_a}"},
+        files={"file": ("secret_a.pdf", io.BytesIO(b"%PDF-1.4 user a secret"), "application/pdf")},
+    )
+    paper_id = upload_res.json()["id"]
+
+    # User B tries to access User A's paper
+    token_b = await get_authenticated_token(client)
+    unauthorized_detail_res = await client.get(
+        f"/papers/{paper_id}",
+        headers={"Authorization": f"Bearer {token_b}"},
+    )
+    assert unauthorized_detail_res.status_code == 404
+    assert unauthorized_detail_res.json()["detail"] == "Paper tidak ditemukan"
+
+
+@pytest.mark.asyncio
+async def test_get_nonexistent_paper(client: AsyncClient) -> None:
+    token = await get_authenticated_token(client)
+    random_id = uuid.uuid4()
+    res = await client.get(
+        f"/papers/{random_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res.status_code == 404
+
+

@@ -2,7 +2,8 @@ import uuid
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -52,4 +53,39 @@ async def upload_paper(
     await db.refresh(paper)
 
     return PaperResponse.model_validate(paper)
+
+
+@router.get("", response_model=list[PaperResponse])
+async def list_papers(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> list[PaperResponse]:
+    query = (
+        select(Paper)
+        .where(Paper.user_id == current_user.id)
+        .order_by(Paper.created_at.desc())
+    )
+    result = await db.execute(query)
+    papers = result.scalars().all()
+    return [PaperResponse.model_validate(p) for p in papers]
+
+
+@router.get("/{paper_id}", response_model=PaperResponse)
+async def get_paper(
+    paper_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> PaperResponse:
+    query = select(Paper).where(
+        Paper.id == paper_id, Paper.user_id == current_user.id
+    )
+    result = await db.execute(query)
+    paper = result.scalar_one_or_none()
+    if not paper:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Paper tidak ditemukan",
+        )
+    return PaperResponse.model_validate(paper)
+
 

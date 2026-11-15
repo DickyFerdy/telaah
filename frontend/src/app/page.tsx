@@ -81,16 +81,19 @@ export default function Home() {
             </span>
           </div>
 
-          <div className="mt-8">
+          <div className="mt-8 flex flex-col sm:flex-row items-start gap-4">
             {user ? (
-              <div className="inline-flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-900">
-                <span className="font-semibold text-sm">
-                  Selamat datang kembali, {user.email}!
-                </span>
-                <span className="text-xs text-blue-600">
-                  (Fitur upload paper siap dikerjakan di item berikutnya)
-                </span>
-              </div>
+              <>
+                <Link
+                  href="/papers"
+                  className="inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-sm transition gap-2"
+                >
+                  Buka Dashboard Paper &rarr;
+                </Link>
+                <div className="inline-flex items-center px-4 py-3 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 text-sm">
+                  Masuk sebagai <strong className="ml-1 text-slate-900">{user.email}</strong>
+                </div>
+              </>
             ) : (
               <Link
                 href="/register"
