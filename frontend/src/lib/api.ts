@@ -133,4 +133,12 @@ export async function uploadPaper(file: File): Promise<Paper> {
   });
 }
 
+export async function importFromArxiv(arxivUrl: string): Promise<Paper> {
+  return apiFetch<Paper>("/papers/arxiv", {
+    method: "POST",
+    body: JSON.stringify({ arxiv_url: arxivUrl }),
+  });
+}
+
+
 

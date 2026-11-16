@@ -209,3 +209,108 @@ async def test_get_nonexistent_paper(client: AsyncClient) -> None:
     assert res.status_code == 404
 
 
+MOCK_ARXIV_XML = """<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <entry>
+    <title>Attention Is All You Need</title>
+    <author><name>Ashish Vaswani</name></author>
+    <author><name>Noam Shazeer</name></author>
+  </entry>
+</feed>
+"""
+
+
+@pytest.mark.asyncio
+async def test_import_arxiv_success(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    token = await get_authenticated_token(client)
+
+    # Mock httpx.AsyncClient.get for arXiv API and PDF download
+    mock_pdf_content = b"%PDF-1.4 Mock arXiv PDF content"
+
+    async def mock_get(self, url, *args, **kwargs):
+        class MockResponse:
+            def __init__(self, status_code: int, content: bytes, text: str = ""):
+                self.status_code = status_code
+                self.content = content
+                self.text = text
+
+            def raise_for_status(self):
+                if self.status_code >= 400:
+                    import httpx
+                    raise httpx.HTTPStatusError("Error", request=None, response=self)
+
+        url_str = str(url)
+        if "export.arxiv.org/api/query" in url_str:
+            return MockResponse(200, MOCK_ARXIV_XML.encode("utf-8"), MOCK_ARXIV_XML)
+        elif "arxiv.org/pdf" in url_str:
+            return MockResponse(200, mock_pdf_content)
+        return MockResponse(404, b"Not Found")
+
+    monkeypatch.setattr("httpx.AsyncClient.get", mock_get)
+
+    res = await client.post(
+        "/papers/arxiv",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"arxiv_url": "https://arxiv.org/abs/1706.03762"},
+    )
+    assert res.status_code == 201
+    data = res.json()
+    assert data["source_type"] == "arxiv"
+    assert data["source_ref"] == "1706.03762"
+    assert data["title"] == "Attention Is All You Need"
+    assert "Ashish Vaswani" in data["authors"]
+
+
+@pytest.mark.asyncio
+async def test_import_arxiv_invalid_id(client: AsyncClient) -> None:
+    token = await get_authenticated_token(client)
+    res = await client.post(
+        "/papers/arxiv",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"arxiv_url": "not-an-arxiv-id"},
+    )
+    assert res.status_code == 400
+    assert "tidak valid" in res.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_import_arxiv_duplicate(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    token = await get_authenticated_token(client)
+
+    mock_pdf_content = b"%PDF-1.4 Mock arXiv PDF"
+
+    async def mock_get(self, url, *args, **kwargs):
+        class MockResponse:
+            def __init__(self, status_code: int, content: bytes, text: str = ""):
+                self.status_code = status_code
+                self.content = content
+                self.text = text
+
+            def raise_for_status(self):
+                pass
+
+        if "export.arxiv.org" in str(url):
+            return MockResponse(200, MOCK_ARXIV_XML.encode("utf-8"), MOCK_ARXIV_XML)
+        return MockResponse(200, mock_pdf_content)
+
+    monkeypatch.setattr("httpx.AsyncClient.get", mock_get)
+
+    # First import
+    res1 = await client.post(
+        "/papers/arxiv",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"arxiv_url": "2301.00001"},
+    )
+    assert res1.status_code == 201
+
+    # Second import (duplicate)
+    res2 = await client.post(
+        "/papers/arxiv",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"arxiv_url": "https://arxiv.org/abs/2301.00001"},
+    )
+    assert res2.status_code == 409
+    assert "sudah pernah diimpor" in res2.json()["detail"]
+
+
+

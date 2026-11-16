@@ -10,8 +10,13 @@ from app.core.config import settings
 from app.core.security import get_current_user
 from app.db.models import Paper, User
 from app.db.session import get_db
+from app.ingest.arxiv import (
+    download_arxiv_pdf,
+    fetch_arxiv_metadata,
+    parse_arxiv_id,
+)
 from app.ingest.validator import validate_pdf
-from app.schemas.paper import PaperResponse
+from app.schemas.paper import ArxivImportRequest, PaperResponse
 
 router = APIRouter(prefix="/papers", tags=["papers"])
 
@@ -45,6 +50,65 @@ async def upload_paper(
         authors=None,
         source_type="upload",
         source_ref=file.filename,
+        file_path=str(dest_file_path),
+        status="uploaded",
+    )
+    db.add(paper)
+    await db.commit()
+    await db.refresh(paper)
+
+    return PaperResponse.model_validate(paper)
+
+
+@router.post(
+    "/arxiv",
+    response_model=PaperResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def import_arxiv_paper(
+    payload: ArxivImportRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> PaperResponse:
+    # 1. Parse arXiv ID from user input (URL or raw ID)
+    arxiv_id = parse_arxiv_id(payload.arxiv_url)
+
+    # 2. Check if user already imported this arXiv paper
+    existing_paper = await db.scalar(
+        select(Paper).where(
+            Paper.user_id == current_user.id,
+            Paper.source_type == "arxiv",
+            Paper.source_ref == arxiv_id,
+        )
+    )
+    if existing_paper:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Paper arXiv '{arxiv_id}' sudah pernah diimpor",
+        )
+
+    # 3. Fetch metadata from arXiv API
+    metadata = await fetch_arxiv_metadata(arxiv_id)
+
+    # 4. Download PDF and validate magic bytes/size
+    content = await download_arxiv_pdf(arxiv_id)
+
+    # 5. Save PDF file
+    paper_id = uuid.uuid4()
+    user_storage_dir = Path(settings.storage_path) / str(current_user.id)
+    user_storage_dir.mkdir(parents=True, exist_ok=True)
+
+    dest_file_path = user_storage_dir / f"{paper_id}.pdf"
+    dest_file_path.write_bytes(content)
+
+    # 6. Create database record
+    paper = Paper(
+        id=paper_id,
+        user_id=current_user.id,
+        title=metadata.title,
+        authors=metadata.authors,
+        source_type="arxiv",
+        source_ref=arxiv_id,
         file_path=str(dest_file_path),
         status="uploaded",
     )

@@ -4,6 +4,10 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 
+class ArxivImportRequest(BaseModel):
+    arxiv_url: str
+
+
 class PaperResponse(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
