@@ -402,6 +402,77 @@ export async function explainPaperTerm(
   });
 }
 
+export interface LatencyMetrics {
+  mean: number;
+  p50: number;
+  p95: number;
+  retrieval_mean: number;
+  generation_mean: number;
+}
+
+export interface TokenMetrics {
+  total_input: number;
+  total_output: number;
+  avg_input_per_query: number;
+  avg_output_per_query: number;
+}
+
+export interface CostMetrics {
+  total: number;
+  avg_per_query: number;
+}
+
+export interface CategoryMetrics {
+  count: number;
+  avg_token_f1: number;
+  avg_rouge_l: number;
+  avg_citation_recall: number;
+}
+
+export interface ModeSummary {
+  total_queries: number;
+  avg_token_f1: number;
+  avg_rouge_l: number;
+  refusal_accuracy: number;
+  avg_citation_page_recall: number;
+  avg_grounding_rate: number;
+  latency_ms: LatencyMetrics;
+  tokens: TokenMetrics;
+  cost_usd: CostMetrics;
+  by_category: Record<string, CategoryMetrics>;
+}
+
+export interface StrategyComparisonItem {
+  label: string;
+  summary: ModeSummary;
+}
+
+export interface BenchmarkPaperItem {
+  filename: string;
+  title: string;
+  authors: string[];
+  arxiv_id: string;
+  domain: string;
+  character: string;
+  page_count: number;
+}
+
+export interface EvalDashboardResponse {
+  timestamp: string;
+  active_strategy: string;
+  comparison: Record<string, StrategyComparisonItem>;
+  papers: BenchmarkPaperItem[];
+  markdown_table: string;
+  extra_notes: string[];
+}
+
+export async function getEvalSummary(): Promise<EvalDashboardResponse> {
+  return apiFetch<EvalDashboardResponse>("/eval/summary", {
+    method: "GET",
+  });
+}
+
+
 
 
 

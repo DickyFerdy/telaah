@@ -240,6 +240,13 @@ export default function PapersPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            <Link
+              href="/eval"
+              className="text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-full border border-indigo-200 transition-colors flex items-center gap-1.5 shadow-xs"
+            >
+              <span>📊</span>
+              <span>Hasil Evaluasi</span>
+            </Link>
             <span className="text-xs font-medium text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
               {user?.email}
             </span>

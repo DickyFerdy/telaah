@@ -526,6 +526,14 @@ function PaperWorkspaceContent() {
         </div>
 
         <div className="flex items-center gap-3">
+          <Link
+            href="/eval"
+            className="text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-full border border-indigo-200 transition-colors flex items-center gap-1 shadow-2xs"
+            title="Lihat Laporan Evaluasi Ilmiah"
+          >
+            <span>📊</span>
+            <span>Evaluasi</span>
+          </Link>
           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
             Siap Tanya Jawab

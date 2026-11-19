@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.auth import router as auth_router
 from app.api.chat import router as chat_router
+from app.api.eval import router as eval_router
 from app.api.explain import router as explain_router
 from app.api.health import router as health_router
 from app.api.papers import router as papers_router
@@ -31,4 +32,5 @@ app.include_router(papers_router)
 app.include_router(chat_router)
 app.include_router(summary_router)
 app.include_router(explain_router)
+app.include_router(eval_router)
 
