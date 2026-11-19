@@ -153,3 +153,32 @@ async def get_paper(
     return PaperResponse.model_validate(paper)
 
 
+@router.delete("/{paper_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_paper(
+    paper_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> None:
+    query = select(Paper).where(
+        Paper.id == paper_id, Paper.user_id == current_user.id
+    )
+    result = await db.execute(query)
+    paper = result.scalar_one_or_none()
+    if not paper:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Paper tidak ditemukan",
+        )
+
+    # 1. Remove file on disk if it exists
+    if paper.file_path:
+        file_to_delete = Path(paper.file_path)
+        if file_to_delete.exists():
+            file_to_delete.unlink(missing_ok=True)
+
+    # 2. Delete paper record in DB (cascades to chunks, summaries, conversations)
+    await db.delete(paper)
+    await db.commit()
+
+
+

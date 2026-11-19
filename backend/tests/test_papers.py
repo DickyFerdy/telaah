@@ -1,6 +1,7 @@
 import io
 import os
 import uuid
+from pathlib import Path
 
 import pytest
 from httpx import AsyncClient
@@ -311,6 +312,80 @@ async def test_import_arxiv_duplicate(client: AsyncClient, monkeypatch: pytest.M
     )
     assert res2.status_code == 409
     assert "sudah pernah diimpor" in res2.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_delete_paper_success(client: AsyncClient) -> None:
+    token = await get_authenticated_token(client)
+    pdf_content = b"%PDF-1.4 sample file for delete test"
+
+    # 1. Upload a paper
+    upload_res = await client.post(
+        "/papers",
+        headers={"Authorization": f"Bearer {token}"},
+        files={"file": ("to_delete.pdf", io.BytesIO(pdf_content), "application/pdf")},
+    )
+    assert upload_res.status_code == 201
+    paper_data = upload_res.json()
+    paper_id = paper_data["id"]
+    file_path = Path(paper_data["file_path"])
+    assert file_path.exists()
+
+    # 2. Delete the paper
+    del_res = await client.delete(
+        f"/papers/{paper_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert del_res.status_code == 204
+
+    # 3. Verify file is deleted on disk
+    assert not file_path.exists()
+
+    # 4. Verify getting the paper now returns 404
+    get_res = await client.get(
+        f"/papers/{paper_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert get_res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_paper_isolation(client: AsyncClient) -> None:
+    token_a = await get_authenticated_token(client)
+    upload_res = await client.post(
+        "/papers",
+        headers={"Authorization": f"Bearer {token_a}"},
+        files={"file": ("user_a_doc.pdf", io.BytesIO(b"%PDF-1.4 file a"), "application/pdf")},
+    )
+    paper_id = upload_res.json()["id"]
+
+    # User B attempts to delete User A's paper
+    token_b = await get_authenticated_token(client)
+    del_res = await client.delete(
+        f"/papers/{paper_id}",
+        headers={"Authorization": f"Bearer {token_b}"},
+    )
+    assert del_res.status_code == 404
+    assert del_res.json()["detail"] == "Paper tidak ditemukan"
+
+    # User A's paper should still exist
+    get_res = await client.get(
+        f"/papers/{paper_id}",
+        headers={"Authorization": f"Bearer {token_a}"},
+    )
+    assert get_res.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_delete_nonexistent_paper(client: AsyncClient) -> None:
+    token = await get_authenticated_token(client)
+    random_id = uuid.uuid4()
+    del_res = await client.delete(
+        f"/papers/{random_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert del_res.status_code == 404
+
 
 
 

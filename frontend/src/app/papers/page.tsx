@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { getPapers, importFromArxiv, Paper, uploadPaper } from "@/lib/api";
+import { deletePaper, getPapers, importFromArxiv, Paper, uploadPaper } from "@/lib/api";
 
 function StatusBadge({ paper }: { paper: Paper }) {
   switch (paper.status) {
@@ -71,6 +71,9 @@ export default function PapersPage() {
   const [arxivUrl, setArxivUrl] = useState("");
   const [isImportingArxiv, setIsImportingArxiv] = useState(false);
   const [arxivError, setArxivError] = useState<string | null>(null);
+
+  // Deletion state
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadPapers = useCallback(async () => {
     try {
@@ -188,6 +191,27 @@ export default function PapersPage() {
       }
     } finally {
       setIsImportingArxiv(false);
+    }
+  };
+
+  const handleDeletePaper = async (paperId: string, paperTitle: string) => {
+    const confirmed = window.confirm(
+      `Apakah Anda yakin ingin menghapus paper "${paperTitle}"? Semua data ekstraksi dan riwayat chat akan dihapus permanen.`
+    );
+    if (!confirmed) return;
+
+    setDeletingId(paperId);
+    try {
+      await deletePaper(paperId);
+      await loadPapers();
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        alert(`Gagal menghapus paper: ${err.message}`);
+      } else {
+        alert("Gagal menghapus paper. Silakan coba lagi.");
+      }
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -464,6 +488,28 @@ export default function PapersPage() {
                           Buka Paper
                         </button>
                       )}
+                      <button
+                        onClick={() =>
+                          handleDeletePaper(
+                            p.id,
+                            p.title || p.source_ref || "Paper"
+                          )
+                        }
+                        disabled={deletingId === p.id}
+                        title="Hapus paper"
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
+                      >
+                        {deletingId === p.id ? (
+                          <svg className="animate-spin h-4 w-4 text-red-600" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        )}
+                      </button>
                     </div>
                   </div>
                 ))}

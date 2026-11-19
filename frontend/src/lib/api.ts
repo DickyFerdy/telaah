@@ -140,5 +140,12 @@ export async function importFromArxiv(arxivUrl: string): Promise<Paper> {
   });
 }
 
+export async function deletePaper(id: string): Promise<void> {
+  await apiFetch<void>(`/papers/${id}`, {
+    method: "DELETE",
+  });
+}
+
+
 
 
