@@ -17,7 +17,7 @@ from app.llm.client import stream_generate_answer
 from app.llm.not_found import NOT_FOUND_DEFAULT_MESSAGE, is_not_found_response
 from app.llm.prompts import SYSTEM_PROMPT_V1, build_qa_prompt
 from app.retrieval.hybrid import search_hybrid
-from app.schemas.chat import ChatRequest
+from app.schemas.chat import ChatRequest, ConversationResponse, MessageResponse
 
 logger = logging.getLogger(__name__)
 
@@ -186,3 +186,127 @@ async def chat_with_paper(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@router.get("/conversations", response_model=list[ConversationResponse])
+async def list_conversations(
+    paper_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> list[ConversationResponse]:
+    # 1. Validasi kepemilikan paper
+    paper = await db.scalar(
+        select(Paper).where(
+            Paper.id == paper_id,
+            Paper.user_id == current_user.id,
+        )
+    )
+    if not paper:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Paper tidak ditemukan",
+        )
+
+    # 2. Ambil semua percakapan untuk paper ini milik current_user
+    stmt = (
+        select(Conversation)
+        .where(
+            Conversation.paper_id == paper_id,
+            Conversation.user_id == current_user.id,
+        )
+        .order_by(Conversation.created_at.desc())
+    )
+    result = await db.execute(stmt)
+    conversations = result.scalars().all()
+
+    response_list: list[ConversationResponse] = []
+    for conv in conversations:
+        msg_stmt = (
+            select(Message)
+            .where(Message.conversation_id == conv.id)
+            .order_by(Message.created_at.asc())
+        )
+        msg_result = await db.execute(msg_stmt)
+        messages = msg_result.scalars().all()
+
+        preview = None
+        for m in messages:
+            if m.role == "user":
+                preview = m.content[:80] + ("..." if len(m.content) > 80 else "")
+                break
+
+        response_list.append(
+            ConversationResponse(
+                id=conv.id,
+                paper_id=conv.paper_id,
+                user_id=conv.user_id,
+                created_at=conv.created_at,
+                message_count=len(messages),
+                preview=preview,
+            )
+        )
+
+    return response_list
+
+
+@router.get(
+    "/conversations/{conversation_id}/messages",
+    response_model=list[MessageResponse],
+)
+async def get_conversation_messages(
+    paper_id: uuid.UUID,
+    conversation_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> list[MessageResponse]:
+    # 1. Validasi percakapan
+    conversation = await db.scalar(
+        select(Conversation).where(
+            Conversation.id == conversation_id,
+            Conversation.paper_id == paper_id,
+            Conversation.user_id == current_user.id,
+        )
+    )
+    if not conversation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Percakapan tidak ditemukan",
+        )
+
+    # 2. Ambil semua pesan
+    stmt = (
+        select(Message)
+        .where(Message.conversation_id == conversation_id)
+        .order_by(Message.created_at.asc())
+    )
+    result = await db.execute(stmt)
+    messages = result.scalars().all()
+
+    return [MessageResponse.model_validate(m) for m in messages]
+
+
+@router.delete(
+    "/conversations/{conversation_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_conversation(
+    paper_id: uuid.UUID,
+    conversation_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> None:
+    conversation = await db.scalar(
+        select(Conversation).where(
+            Conversation.id == conversation_id,
+            Conversation.paper_id == paper_id,
+            Conversation.user_id == current_user.id,
+        )
+    )
+    if not conversation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Percakapan tidak ditemukan",
+        )
+
+    await db.delete(conversation)
+    await db.commit()

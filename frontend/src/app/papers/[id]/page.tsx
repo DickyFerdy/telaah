@@ -8,7 +8,11 @@ import PdfViewer from "@/components/PdfViewer";
 import {
   Citation,
   ChatMessage,
+  ConversationItem,
+  deleteConversation,
+  getConversationMessages,
   getPaper,
+  getPaperConversations,
   Paper,
   streamPaperChat,
 } from "@/lib/api";
@@ -30,6 +34,12 @@ function PaperWorkspaceContent() {
   const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null);
   const [expandedContexts, setExpandedContexts] = useState<Record<string, boolean>>({});
 
+  // Conversations history state
+  const [conversations, setConversations] = useState<ConversationItem[]>([]);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [showHistoryDropdown, setShowHistoryDropdown] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
   const abortControllerRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -44,7 +54,18 @@ function PaperWorkspaceContent() {
     scrollToBottom();
   }, [messages, isStreaming]);
 
-  // Check auth and load paper
+  // Load conversations list
+  const refreshConversations = async () => {
+    if (!paperId) return;
+    try {
+      const list = await getPaperConversations(paperId);
+      setConversations(list);
+    } catch (err) {
+      console.error("Gagal memperbarui riwayat percakapan:", err);
+    }
+  };
+
+  // Check auth and load paper & conversations
   useEffect(() => {
     if (!authLoading && !user) {
       router.push("/login");
@@ -67,11 +88,76 @@ function PaperWorkspaceContent() {
           }
         });
 
+      getPaperConversations(paperId)
+        .then(async (list) => {
+          if (!isMounted) return;
+          setConversations(list);
+          if (list.length > 0) {
+            const latest = list[0];
+            setCurrentConversationId(latest.id);
+            const msgs = await getConversationMessages(paperId, latest.id);
+            if (isMounted) {
+              setMessages(msgs);
+            }
+          }
+        })
+        .catch((err) => {
+          console.error("Gagal memuat riwayat percakapan:", err);
+        });
+
       return () => {
         isMounted = false;
       };
     }
   }, [authLoading, user, paperId, router]);
+
+  // Conversation switching handlers
+  const handleNewConversation = () => {
+    setCurrentConversationId(null);
+    setMessages([]);
+    setSelectedCitation(null);
+    setShowHistoryDropdown(false);
+  };
+
+  const handleSelectConversation = async (convId: string) => {
+    if (convId === currentConversationId) {
+      setShowHistoryDropdown(false);
+      return;
+    }
+    setIsLoadingHistory(true);
+    setShowHistoryDropdown(false);
+    try {
+      const msgs = await getConversationMessages(paperId, convId);
+      setCurrentConversationId(convId);
+      setMessages(msgs);
+      setSelectedCitation(null);
+    } catch (err) {
+      console.error("Gagal memuat pesan percakapan:", err);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const handleDeleteConversation = async (
+    e: React.MouseEvent,
+    convId: string
+  ) => {
+    e.stopPropagation();
+    try {
+      await deleteConversation(paperId, convId);
+      const updated = conversations.filter((c) => c.id !== convId);
+      setConversations(updated);
+      if (currentConversationId === convId) {
+        if (updated.length > 0) {
+          handleSelectConversation(updated[0].id);
+        } else {
+          handleNewConversation();
+        }
+      }
+    } catch (err) {
+      console.error("Gagal menghapus percakapan:", err);
+    }
+  };
 
   // Send message handler
   const handleSendMessage = async (textToSend?: string) => {
@@ -132,6 +218,10 @@ function PaperWorkspaceContent() {
             );
           },
           onDone: (data) => {
+            if (data.conversation_id) {
+              setCurrentConversationId(data.conversation_id);
+              refreshConversations();
+            }
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantMessageId
@@ -160,7 +250,8 @@ function PaperWorkspaceContent() {
             );
           },
         },
-        abortController.signal
+        abortController.signal,
+        currentConversationId
       );
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") {
@@ -339,16 +430,153 @@ function PaperWorkspaceContent() {
         {/* Panel Kanan: Chat Interface dengan Streaming */}
         <section className="flex flex-col w-full md:w-[480px] lg:w-[540px] xl:w-[600px] bg-white border-l border-slate-200 shrink-0">
           {/* Header Chat */}
-          <div className="h-10 border-b border-slate-200 px-4 flex items-center justify-between bg-slate-50 shrink-0">
+          <div className="h-11 border-b border-slate-200 px-3 flex items-center justify-between bg-slate-50 shrink-0 relative">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></div>
-              <span className="text-xs font-semibold text-slate-700">Tanya Jawab Paper</span>
+              <span className="text-xs font-semibold text-slate-800">Tanya Jawab</span>
+              {isStreaming && (
+                <span className="text-[10px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200 animate-pulse">
+                  Menulis...
+                </span>
+              )}
             </div>
-            {isStreaming && (
-              <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200 animate-pulse">
-                Menulis jawaban...
-              </span>
-            )}
+
+            <div className="flex items-center gap-1.5">
+              {/* Tombol Riwayat Percakapan (Dropdown) */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowHistoryDropdown((prev) => !prev)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border transition ${
+                    showHistoryDropdown
+                      ? "bg-slate-200 border-slate-300 text-slate-900"
+                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  }`}
+                  title="Riwayat Percakapan"
+                >
+                  <svg
+                    className="w-3.5 h-3.5 text-slate-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <span>Riwayat</span>
+                  {conversations.length > 0 && (
+                    <span className="px-1.5 py-0.2 text-[10px] font-semibold bg-slate-100 text-slate-600 rounded-full border border-slate-200">
+                      {conversations.length}
+                    </span>
+                  )}
+                </button>
+
+                {/* Dropdown Menu Riwayat */}
+                {showHistoryDropdown && (
+                  <div className="absolute right-0 mt-1 w-72 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-30 max-h-80 overflow-y-auto">
+                    <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                        Sesi Diskusi ({conversations.length})
+                      </span>
+                      <button
+                        onClick={() => setShowHistoryDropdown(false)}
+                        className="text-slate-400 hover:text-slate-600 text-xs"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {isLoadingHistory ? (
+                      <div className="p-4 text-center text-xs text-slate-400">
+                        Memuat sesi...
+                      </div>
+                    ) : conversations.length === 0 ? (
+                      <div className="p-4 text-center text-xs text-slate-400">
+                        Belum ada riwayat percakapan.
+                      </div>
+                    ) : (
+                      conversations.map((conv) => (
+                        <div
+                          key={conv.id}
+                          onClick={() => handleSelectConversation(conv.id)}
+                          className={`w-full text-left px-3 py-2 text-xs hover:bg-slate-50 flex items-start justify-between gap-2 border-b border-slate-50 cursor-pointer ${
+                            conv.id === currentConversationId
+                              ? "bg-blue-50/70 border-l-2 border-l-blue-600"
+                              : ""
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-slate-800 truncate">
+                              {conv.preview || "Percakapan Baru"}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
+                              <span>{conv.message_count} pesan</span>
+                              <span>&bull;</span>
+                              <span>
+                                {new Date(conv.created_at).toLocaleDateString(
+                                  "id-ID",
+                                  {
+                                    month: "short",
+                                    day: "numeric",
+                                  }
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteConversation(e, conv.id)}
+                            className="p-1 text-slate-300 hover:text-rose-500 rounded transition"
+                            title="Hapus sesi ini"
+                          >
+                            <svg
+                              className="w-3.5 h-3.5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Tombol Percakapan Baru */}
+              <button
+                type="button"
+                onClick={handleNewConversation}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 transition shadow-sm"
+                title="Mulai Percakapan Baru"
+              >
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+                <span>Baru</span>
+              </button>
+            </div>
           </div>
 
           {/* Area Pesan Chat */}

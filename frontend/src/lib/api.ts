@@ -180,6 +180,15 @@ export interface RetrievedContextChunk {
   similarity_score?: number;
 }
 
+export interface ConversationItem {
+  id: string;
+  paper_id: string;
+  user_id: string;
+  created_at: string;
+  message_count: number;
+  preview: string | null;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -188,6 +197,48 @@ export interface ChatMessage {
   not_found?: boolean;
   context_chunks?: RetrievedContextChunk[];
   created_at?: string;
+}
+
+export async function getPaperConversations(
+  paperId: string
+): Promise<ConversationItem[]> {
+  return apiFetch<ConversationItem[]>(`/papers/${paperId}/chat/conversations`);
+}
+
+export async function getConversationMessages(
+  paperId: string,
+  conversationId: string
+): Promise<ChatMessage[]> {
+  const rawList = await apiFetch<
+    Array<{
+      id: string;
+      conversation_id: string;
+      role: "user" | "assistant";
+      content: string;
+      citations?: Citation[];
+      created_at: string;
+    }>
+  >(`/papers/${paperId}/chat/conversations/${conversationId}/messages`);
+
+  return rawList.map((m) => ({
+    id: m.id,
+    role: m.role,
+    content: m.content,
+    citations: m.citations,
+    created_at: m.created_at,
+  }));
+}
+
+export async function deleteConversation(
+  paperId: string,
+  conversationId: string
+): Promise<void> {
+  return apiFetch<void>(
+    `/papers/${paperId}/chat/conversations/${conversationId}`,
+    {
+      method: "DELETE",
+    }
+  );
 }
 
 export async function streamPaperChat(
@@ -204,7 +255,8 @@ export async function streamPaperChat(
     }) => void;
     onError?: (err: string) => void;
   },
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  conversationId?: string | null
 ): Promise<void> {
   const token = getStoredToken();
   const headers = new Headers();
@@ -217,7 +269,10 @@ export async function streamPaperChat(
   const response = await fetch(url, {
     method: "POST",
     headers,
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({
+      message,
+      conversation_id: conversationId || undefined,
+    }),
     signal,
   });
 
