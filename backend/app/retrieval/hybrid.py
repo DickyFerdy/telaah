@@ -5,6 +5,7 @@ from collections import defaultdict
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.retrieval.keyword import search_keyword
+from app.retrieval.reranker import rerank_chunks
 from app.retrieval.vector import RetrievedChunk, search_vector
 
 RRF_CONSTANT_K = 60
@@ -88,8 +89,15 @@ async def search_hybrid(
     )
 
     # Gabungkan dengan RRF
-    return reciprocal_rank_fusion(
+    fused_candidates = reciprocal_rank_fusion(
         ranked_lists=[vector_results, keyword_results],
         k=RRF_CONSTANT_K,
-        top_k=top_k,
+        top_k=candidates_limit,
+    )
+
+    # 3. Jalankan Cross-Encoder Reranker pada kandidat RRF
+    return await rerank_chunks(
+        query=cleaned_query,
+        chunks=fused_candidates,
+        top_n=top_k,
     )
