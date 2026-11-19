@@ -33,6 +33,7 @@ async def test_embed_empty_input() -> None:
 async def test_embed_gemini_api_mock(monkeypatch: pytest.MonkeyPatch) -> None:
     # Uji saat GEMINI_API_KEY terisi dengan mock respon Gemini batchEmbedContents
     monkeypatch.setattr(settings, "gemini_api_key", "test-api-key")
+    monkeypatch.setattr(settings, "environment", "development")
 
     mock_values = [0.05] * EMBEDDING_DIM
     mock_payload = {
