@@ -10,11 +10,15 @@ import {
   ChatMessage,
   ConversationItem,
   deleteConversation,
+  generatePaperSummary,
   getConversationMessages,
   getPaper,
   getPaperConversations,
+  getPaperSummary,
   Paper,
+  regeneratePaperSummary,
   streamPaperChat,
+  SummaryResponse,
 } from "@/lib/api";
 
 function PaperWorkspaceContent() {
@@ -26,6 +30,14 @@ function PaperWorkspaceContent() {
   const [paper, setPaper] = useState<Paper | null>(null);
   const [isLoadingPaper, setIsLoadingPaper] = useState(true);
   const [paperError, setPaperError] = useState<string | null>(null);
+
+  // Tab state (Chat vs Summary)
+  const [activeTab, setActiveTab] = useState<"chat" | "summary">("chat");
+
+  // Summary state
+  const [summary, setSummary] = useState<SummaryResponse | null>(null);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -105,11 +117,40 @@ function PaperWorkspaceContent() {
           console.error("Gagal memuat riwayat percakapan:", err);
         });
 
+      getPaperSummary(paperId)
+        .then((sumData) => {
+          if (isMounted) {
+            setSummary(sumData);
+          }
+        })
+        .catch(() => {
+          // Ringkasan belum dibuat untuk paper ini, normal
+        });
+
       return () => {
         isMounted = false;
       };
     }
   }, [authLoading, user, paperId, router]);
+
+  // Handler ekstraksi / regenerasi ringkasan
+  const handleGenerateSummary = async (isRegenerate = false) => {
+    if (!paperId || isGeneratingSummary) return;
+    setIsGeneratingSummary(true);
+    setSummaryError(null);
+    try {
+      const res = isRegenerate
+        ? await regeneratePaperSummary(paperId)
+        : await generatePaperSummary(paperId);
+      setSummary(res);
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Gagal menghasilkan ringkasan paper";
+      setSummaryError(msg);
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  };
 
   // Conversation switching handlers
   const handleNewConversation = () => {
@@ -429,137 +470,17 @@ function PaperWorkspaceContent() {
 
         {/* Panel Kanan: Chat Interface dengan Streaming */}
         <section className="flex flex-col w-full md:w-[480px] lg:w-[540px] xl:w-[600px] bg-white border-l border-slate-200 shrink-0">
-          {/* Header Chat */}
+          {/* Header Tab Switcher */}
           <div className="h-11 border-b border-slate-200 px-3 flex items-center justify-between bg-slate-50 shrink-0 relative">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></div>
-              <span className="text-xs font-semibold text-slate-800">Tanya Jawab</span>
-              {isStreaming && (
-                <span className="text-[10px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200 animate-pulse">
-                  Menulis...
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              {/* Tombol Riwayat Percakapan (Dropdown) */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setShowHistoryDropdown((prev) => !prev)}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border transition ${
-                    showHistoryDropdown
-                      ? "bg-slate-200 border-slate-300 text-slate-900"
-                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                  }`}
-                  title="Riwayat Percakapan"
-                >
-                  <svg
-                    className="w-3.5 h-3.5 text-slate-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <span>Riwayat</span>
-                  {conversations.length > 0 && (
-                    <span className="px-1.5 py-0.2 text-[10px] font-semibold bg-slate-100 text-slate-600 rounded-full border border-slate-200">
-                      {conversations.length}
-                    </span>
-                  )}
-                </button>
-
-                {/* Dropdown Menu Riwayat */}
-                {showHistoryDropdown && (
-                  <div className="absolute right-0 mt-1 w-72 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-30 max-h-80 overflow-y-auto">
-                    <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">
-                      <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                        Sesi Diskusi ({conversations.length})
-                      </span>
-                      <button
-                        onClick={() => setShowHistoryDropdown(false)}
-                        className="text-slate-400 hover:text-slate-600 text-xs"
-                      >
-                        ✕
-                      </button>
-                    </div>
-
-                    {isLoadingHistory ? (
-                      <div className="p-4 text-center text-xs text-slate-400">
-                        Memuat sesi...
-                      </div>
-                    ) : conversations.length === 0 ? (
-                      <div className="p-4 text-center text-xs text-slate-400">
-                        Belum ada riwayat percakapan.
-                      </div>
-                    ) : (
-                      conversations.map((conv) => (
-                        <div
-                          key={conv.id}
-                          onClick={() => handleSelectConversation(conv.id)}
-                          className={`w-full text-left px-3 py-2 text-xs hover:bg-slate-50 flex items-start justify-between gap-2 border-b border-slate-50 cursor-pointer ${
-                            conv.id === currentConversationId
-                              ? "bg-blue-50/70 border-l-2 border-l-blue-600"
-                              : ""
-                          }`}
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium text-slate-800 truncate">
-                              {conv.preview || "Percakapan Baru"}
-                            </p>
-                            <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
-                              <span>{conv.message_count} pesan</span>
-                              <span>&bull;</span>
-                              <span>
-                                {new Date(conv.created_at).toLocaleDateString(
-                                  "id-ID",
-                                  {
-                                    month: "short",
-                                    day: "numeric",
-                                  }
-                                )}
-                              </span>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={(e) => handleDeleteConversation(e, conv.id)}
-                            className="p-1 text-slate-300 hover:text-rose-500 rounded transition"
-                            title="Hapus sesi ini"
-                          >
-                            <svg
-                              className="w-3.5 h-3.5"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Tombol Percakapan Baru */}
+            <div className="flex items-center gap-1 bg-slate-200/70 p-0.5 rounded-lg">
               <button
                 type="button"
-                onClick={handleNewConversation}
-                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 transition shadow-sm"
-                title="Mulai Percakapan Baru"
+                onClick={() => setActiveTab("chat")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md transition ${
+                  activeTab === "chat"
+                    ? "bg-white text-slate-900 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
               >
                 <svg
                   className="w-3.5 h-3.5"
@@ -571,16 +492,426 @@ function PaperWorkspaceContent() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth="2"
-                    d="M12 4v16m8-8H4"
+                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
                   />
                 </svg>
-                <span>Baru</span>
+                <span>Tanya Jawab</span>
+                {isStreaming && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse"></span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("summary")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md transition ${
+                  activeTab === "summary"
+                    ? "bg-white text-slate-900 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                <span>Ringkasan</span>
+                {summary && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                )}
               </button>
             </div>
+
+            {/* Kontrol Kanan Spesifik Tiap Tab */}
+            {activeTab === "chat" ? (
+              <div className="flex items-center gap-1.5">
+                {/* Tombol Riwayat Percakapan (Dropdown) */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowHistoryDropdown((prev) => !prev)}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border transition ${
+                      showHistoryDropdown
+                        ? "bg-slate-200 border-slate-300 text-slate-900"
+                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    }`}
+                    title="Riwayat Percakapan"
+                  >
+                    <svg
+                      className="w-3.5 h-3.5 text-slate-500"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <span>Riwayat</span>
+                    {conversations.length > 0 && (
+                      <span className="px-1.5 py-0.2 text-[10px] font-semibold bg-slate-100 text-slate-600 rounded-full border border-slate-200">
+                        {conversations.length}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Dropdown Menu Riwayat */}
+                  {showHistoryDropdown && (
+                    <div className="absolute right-0 mt-1 w-72 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-30 max-h-80 overflow-y-auto">
+                      <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                          Sesi Diskusi ({conversations.length})
+                        </span>
+                        <button
+                          onClick={() => setShowHistoryDropdown(false)}
+                          className="text-slate-400 hover:text-slate-600 text-xs"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      {isLoadingHistory ? (
+                        <div className="p-4 text-center text-xs text-slate-400">
+                          Memuat sesi...
+                        </div>
+                      ) : conversations.length === 0 ? (
+                        <div className="p-4 text-center text-xs text-slate-400">
+                          Belum ada riwayat percakapan.
+                        </div>
+                      ) : (
+                        conversations.map((conv) => (
+                          <div
+                            key={conv.id}
+                            onClick={() => handleSelectConversation(conv.id)}
+                            className={`w-full text-left px-3 py-2 text-xs hover:bg-slate-50 flex items-start justify-between gap-2 border-b border-slate-50 cursor-pointer ${
+                              conv.id === currentConversationId
+                                ? "bg-blue-50/70 border-l-2 border-l-blue-600"
+                                : ""
+                            }`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-slate-800 truncate">
+                                {conv.preview || "Percakapan Baru"}
+                              </p>
+                              <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
+                                <span>{conv.message_count} pesan</span>
+                                <span>&bull;</span>
+                                <span>
+                                  {new Date(conv.created_at).toLocaleDateString(
+                                    "id-ID",
+                                    {
+                                      month: "short",
+                                      day: "numeric",
+                                    }
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteConversation(e, conv.id)}
+                              className="p-1 text-slate-300 hover:text-rose-500 rounded transition"
+                              title="Hapus sesi ini"
+                            >
+                              <svg
+                                className="w-3.5 h-3.5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Tombol Percakapan Baru */}
+                <button
+                  type="button"
+                  onClick={handleNewConversation}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 transition shadow-sm"
+                  title="Mulai Percakapan Baru"
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  <span>Baru</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                {summary && (
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateSummary(true)}
+                    disabled={isGeneratingSummary}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition shadow-xs disabled:opacity-50"
+                    title="Buat Ulang Ringkasan"
+                  >
+                    <svg
+                      className={`w-3.5 h-3.5 text-slate-500 ${
+                        isGeneratingSummary ? "animate-spin" : ""
+                      }`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                      />
+                    </svg>
+                    <span>{isGeneratingSummary ? "Memproses..." : "Buat Ulang"}</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Area Pesan Chat */}
-          <div className="flex-1 p-4 overflow-y-auto space-y-4">
+          {/* Body Panel: Ringkasan Terstruktur VS Tanya Jawab Chat */}
+          {activeTab === "summary" ? (
+            <div className="flex-1 p-5 overflow-y-auto space-y-4 bg-slate-50/50">
+              {summaryError && (
+                <div className="p-3 text-xs bg-rose-50 border border-rose-200 text-rose-700 rounded-lg flex items-center justify-between">
+                  <span>⚠️ {summaryError}</span>
+                  <button
+                    onClick={() => setSummaryError(null)}
+                    className="text-rose-400 hover:text-rose-600 text-sm font-bold ml-2"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
+              {isGeneratingSummary && !summary ? (
+                <div className="h-full flex flex-col items-center justify-center text-center p-8 text-slate-500">
+                  <svg
+                    className="animate-spin h-8 w-8 text-blue-600 mb-3"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v8H4z"
+                    ></path>
+                  </svg>
+                  <h4 className="text-sm font-semibold text-slate-800 mb-1">
+                    Sedang Mengekstrak Ringkasan Terstruktur...
+                  </h4>
+                  <p className="text-xs text-slate-500 max-w-xs">
+                    Menganalisis metodologi, data eksperimen, hasil utama, dan batasan paper secara otomatis.
+                  </p>
+                </div>
+              ) : !summary ? (
+                <div className="h-full flex flex-col items-center justify-center text-center p-8 text-slate-500">
+                  <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3 shadow-inner">
+                    <svg
+                      className="w-7 h-7"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
+                    </svg>
+                  </div>
+                  <h4 className="text-base font-bold text-slate-800 mb-1">
+                    Ringkasan Belum Dibuat
+                  </h4>
+                  <p className="text-xs text-slate-500 max-w-sm mb-6 leading-relaxed">
+                    Dapatkan gambaran menyeluruh paper ini dalam hitungan detik: pertanyaan riset, arsitektur metode, dataset, hasil pengujian, dan keterbatasannya.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateSummary(false)}
+                    disabled={isGeneratingSummary}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm hover:shadow transition disabled:opacity-50"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M13 10V3L4 14h7v7l9-11h-7z"
+                      />
+                    </svg>
+                    <span>Ekstrak Ringkasan Sekarang</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4 pb-6">
+                  {/* Banner TL;DR */}
+                  {summary.content.tldr && (
+                    <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/10 via-indigo-500/5 to-slate-50 border border-blue-200/80 shadow-xs">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-xs font-bold text-blue-700 uppercase tracking-wider flex items-center gap-1.5">
+                          <span>⚡</span> Intisari Paper (TL;DR)
+                        </span>
+                      </div>
+                      <p className="text-xs font-medium text-slate-800 leading-relaxed">
+                        {summary.content.tldr}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* 6 Kartu Aspek Ilmiah Terstruktur */}
+                  <div className="space-y-3">
+                    {/* 1. Pertanyaan Penelitian */}
+                    <div className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs hover:border-slate-300 transition">
+                      <div className="flex items-center gap-2 mb-1 text-slate-800 font-semibold text-xs">
+                        <span className="text-sm">🎯</span>
+                        <span>Pertanyaan Penelitian</span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        {summary.content.research_question}
+                      </p>
+                    </div>
+
+                    {/* 2. Metodologi */}
+                    <div className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs hover:border-slate-300 transition">
+                      <div className="flex items-center gap-2 mb-1 text-slate-800 font-semibold text-xs">
+                        <span className="text-sm">⚙️</span>
+                        <span>Metodologi & Arsitektur</span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        {summary.content.method}
+                      </p>
+                    </div>
+
+                    {/* 3. Dataset */}
+                    <div className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs hover:border-slate-300 transition">
+                      <div className="flex items-center gap-2 mb-1 text-slate-800 font-semibold text-xs">
+                        <span className="text-sm">📊</span>
+                        <span>Dataset & Sampel Data</span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        {summary.content.dataset}
+                      </p>
+                    </div>
+
+                    {/* 4. Metrik Evaluasi */}
+                    <div className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs hover:border-slate-300 transition">
+                      <div className="flex items-center gap-2 mb-1 text-slate-800 font-semibold text-xs">
+                        <span className="text-sm">📈</span>
+                        <span>Metrik Evaluasi</span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        {summary.content.metrics}
+                      </p>
+                    </div>
+
+                    {/* 5. Hasil Utama */}
+                    <div className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs hover:border-slate-300 transition">
+                      <div className="flex items-center gap-2 mb-1 text-slate-800 font-semibold text-xs">
+                        <span className="text-sm">🏆</span>
+                        <span>Hasil Utama & Temuan</span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        {summary.content.results}
+                      </p>
+                    </div>
+
+                    {/* 6. Keterbatasan */}
+                    <div className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs hover:border-slate-300 transition">
+                      <div className="flex items-center gap-2 mb-1 text-slate-800 font-semibold text-xs">
+                        <span className="text-sm">⚠️</span>
+                        <span>Keterbatasan & Batasan Studi</span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        {summary.content.limitations}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Pintasan Aksi Tanya Lanjutan di Chat */}
+                  <div className="pt-2">
+                    <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                      Lanjutkan Diskusi di Tanya Jawab:
+                    </div>
+                    <div className="grid grid-cols-1 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTab("chat");
+                          handleSendMessage(
+                            "Bisa jelaskan lebih detail tentang metodologi yang digunakan di paper ini?"
+                          );
+                        }}
+                        className="text-left p-2.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition"
+                      >
+                        💬 &ldquo;Bisa jelaskan lebih detail tentang metodologi di paper ini?&rdquo;
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTab("chat");
+                          handleSendMessage(
+                            "Bagaimana analisis perbandingan hasil eksperimen paper ini dengan model lain?"
+                          );
+                        }}
+                        className="text-left p-2.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition"
+                      >
+                        💬 &ldquo;Bagaimana analisis perbandingan hasil eksperimen dengan model lain?&rdquo;
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Area Pesan Chat */}
+              <div className="flex-1 p-4 overflow-y-auto space-y-4">
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
                 <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
@@ -758,7 +1089,9 @@ function PaperWorkspaceContent() {
               Jawaban dirangkum otomatis dari teks paper dengan sitasi bernomor [1], [2].
             </div>
           </div>
-        </section>
+        </>
+      )}
+    </section>
       </main>
     </div>
   );

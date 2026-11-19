@@ -342,6 +342,46 @@ export async function streamPaperChat(
   }
 }
 
+export interface SummaryContent {
+  tldr?: string | null;
+  research_question: string;
+  method: string;
+  dataset: string;
+  metrics: string;
+  results: string;
+  limitations: string;
+}
+
+export interface SummaryResponse {
+  id: string;
+  paper_id: string;
+  content: SummaryContent;
+  prompt_version: string | null;
+  created_at: string;
+}
+
+export async function getPaperSummary(
+  paperId: string
+): Promise<SummaryResponse> {
+  return apiFetch<SummaryResponse>(`/papers/${paperId}/summary`);
+}
+
+export async function generatePaperSummary(
+  paperId: string
+): Promise<SummaryResponse> {
+  return apiFetch<SummaryResponse>(`/papers/${paperId}/summary`, {
+    method: "POST",
+  });
+}
+
+export async function regeneratePaperSummary(
+  paperId: string
+): Promise<SummaryResponse> {
+  return apiFetch<SummaryResponse>(`/papers/${paperId}/summary/regenerate`, {
+    method: "POST",
+  });
+}
+
 
 
 
