@@ -1,6 +1,7 @@
 import uuid
 from collections.abc import Sequence
 
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Chunk
@@ -15,6 +16,7 @@ async def save_chunks_to_db(
 ) -> list[Chunk]:
     """
     Menyimpan daftar DocumentChunk beserta vektor embedding ke tabel `chunks` di PostgreSQL.
+    Kolom `tsv` diisi dengan fungsi PostgreSQL `to_tsvector('english', ...)` untuk pencarian kata kunci.
     """
     if len(chunks) != len(embeddings):
         raise ValueError(
@@ -33,7 +35,7 @@ async def save_chunks_to_db(
             text=chunk.text,
             bbox=chunk.bbox,
             embedding=emb,
-            tsv=None,  # Akan diisi di item berikutnya (kolom tsv pencarian kata kunci)
+            tsv=func.to_tsvector("english", chunk.text),
             token_count=chunk.token_count,
         )
         db.add(chunk_record)
