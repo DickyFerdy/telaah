@@ -170,3 +170,53 @@ async def generate_structured_json(
             logger.error("Gagal mendecode JSON dari Gemini: %s", raw_text)
             raise ValueError(f"Output model bukan JSON yang valid: {err}") from err
 
+
+async def generate_text_answer(
+    prompt: str,
+    system_instruction: str,
+    timeout: float = 30.0,
+) -> str:
+    """
+    Menghasilkan respons teks non-streaming tunggal dari Gemini API.
+    Jika GEMINI_API_KEY tidak disetel (mode testing/offline), mengembalikan teks sintetis.
+    """
+    api_key = settings.gemini_api_key.strip()
+
+    # Fallback mode pengujian offline / key dummy
+    if not api_key or api_key.startswith("AQ.") or settings.environment == "testing":
+        logger.warning(
+            "GEMINI_API_KEY tidak disetel atau dummy key. Menggunakan teks penjelasan sintetis."
+        )
+        return (
+            "Istilah ini mengacu pada konsep fundamental dalam komputasi dan arsitektur model, "
+            "yang berfungsi mengoptimalkan representasi fitur secara efisien dan terukur."
+        )
+
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "systemInstruction": {"parts": [{"text": system_instruction}]},
+        "generationConfig": {
+            "temperature": 0.2,
+            "maxOutputTokens": 512,
+        },
+    }
+
+    url = f"{GEMINI_GENERATE_URL}?key={api_key}"
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        response = await client.post(
+            url,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        candidates = data.get("candidates", [])
+        if not candidates or "content" not in candidates[0]:
+            raise ValueError("Respons Gemini tidak memuat kandidat teks.")
+
+        parts = candidates[0]["content"].get("parts", [])
+        return "".join(p.get("text", "") for p in parts).strip()
+
+

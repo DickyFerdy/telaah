@@ -382,6 +382,26 @@ export async function regeneratePaperSummary(
   });
 }
 
+export interface ExplainTermResponse {
+  term: string;
+  explanation: string;
+  context?: string | null;
+}
+
+export async function explainPaperTerm(
+  paperId: string,
+  term: string,
+  context?: string | null
+): Promise<ExplainTermResponse> {
+  return apiFetch<ExplainTermResponse>(`/papers/${paperId}/explain-term`, {
+    method: "POST",
+    body: JSON.stringify({
+      term,
+      context: context || undefined,
+    }),
+  });
+}
+
 
 
 

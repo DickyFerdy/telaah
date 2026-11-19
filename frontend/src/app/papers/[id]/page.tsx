@@ -10,6 +10,8 @@ import {
   ChatMessage,
   ConversationItem,
   deleteConversation,
+  explainPaperTerm,
+  ExplainTermResponse,
   generatePaperSummary,
   getConversationMessages,
   getPaper,
@@ -38,6 +40,18 @@ function PaperWorkspaceContent() {
   const [summary, setSummary] = useState<SummaryResponse | null>(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
+
+  // Term explainer state (fitur seleksi teks)
+  const [selectedTerm, setSelectedTerm] = useState<string>("");
+  const [termContext, setTermContext] = useState<string>("");
+  const [tooltipPosition, setTooltipPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [isExplainingTerm, setIsExplainingTerm] = useState(false);
+  const [explainedData, setExplainedData] =
+    useState<ExplainTermResponse | null>(null);
+  const [showExplainModal, setShowExplainModal] = useState(false);
 
   // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -149,6 +163,68 @@ function PaperWorkspaceContent() {
       setSummaryError(msg);
     } finally {
       setIsGeneratingSummary(false);
+    }
+  };
+
+  // Deteksi seleksi teks di layar untuk penjelasan istilah
+  useEffect(() => {
+    const handleMouseUp = () => {
+      setTimeout(() => {
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed) {
+          setTooltipPosition(null);
+          return;
+        }
+
+        const text = selection.toString().trim();
+        const words = text.split(/\s+/).filter(Boolean);
+        // Tampilkan tombol jelaskan istilah jika teks antara 1 s.d. 15 kata
+        if (text.length >= 2 && words.length >= 1 && words.length <= 15) {
+          try {
+            const range = selection.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            const nodeText =
+              range.commonAncestorContainer.textContent || text;
+
+            setSelectedTerm(text);
+            setTermContext(nodeText.slice(0, 500));
+            setTooltipPosition({
+              x: Math.max(20, rect.left + rect.width / 2),
+              y: Math.max(10, rect.top - 10),
+            });
+          } catch {
+            setTooltipPosition(null);
+          }
+        } else {
+          setTooltipPosition(null);
+        }
+      }, 50);
+    };
+
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
+
+  const handleExplainTerm = async () => {
+    if (!selectedTerm || !paperId) return;
+    setTooltipPosition(null);
+    setShowExplainModal(true);
+    setIsExplainingTerm(true);
+    setExplainedData(null);
+    try {
+      const res = await explainPaperTerm(paperId, selectedTerm, termContext);
+      setExplainedData(res);
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Gagal menjelaskan istilah";
+      setExplainedData({
+        term: selectedTerm,
+        explanation: `Terjadi kendala saat menjelaskan istilah: ${msg}`,
+      });
+    } finally {
+      setIsExplainingTerm(false);
     }
   };
 
@@ -1093,6 +1169,121 @@ function PaperWorkspaceContent() {
       )}
     </section>
       </main>
+
+      {/* Floating Action Button untuk Seleksi Istilah */}
+      {tooltipPosition && (
+        <div
+          style={{
+            position: "fixed",
+            left: `${tooltipPosition.x}px`,
+            top: `${tooltipPosition.y}px`,
+            transform: "translate(-50%, -100%)",
+            zIndex: 50,
+          }}
+          className="animate-in fade-in zoom-in-95 duration-150"
+        >
+          <button
+            type="button"
+            onMouseDown={(e) => {
+              // Mencegah blur / deselect saat tombol diklik
+              e.preventDefault();
+            }}
+            onClick={handleExplainTerm}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-full shadow-lg hover:bg-blue-600 transition cursor-pointer"
+          >
+            <span>💡</span>
+            <span>Jelaskan Istilah</span>
+          </button>
+        </div>
+      )}
+
+      {/* Popover / Modal Penjelasan Istilah */}
+      {showExplainModal && (
+        <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden p-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-blue-50 text-blue-600 text-base">
+                  💡
+                </span>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 leading-tight">
+                    {explainedData?.term || selectedTerm}
+                  </h4>
+                  <span className="text-[10px] text-slate-400">
+                    Penjelasan Konsep Ilmiah
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowExplainModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition text-sm cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {isExplainingTerm ? (
+              <div className="py-8 flex flex-col items-center justify-center gap-2.5 text-center">
+                <svg
+                  className="animate-spin h-6 w-6 text-blue-600"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8H4z"
+                  ></path>
+                </svg>
+                <span className="text-xs text-slate-500 font-medium">
+                  Menyusun penjelasan singkat dari model...
+                </span>
+              </div>
+            ) : explainedData ? (
+              <div className="space-y-3">
+                <p className="text-xs text-slate-700 leading-relaxed bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+                  {explainedData.explanation}
+                </p>
+
+                {explainedData.context && (
+                  <div className="p-2.5 rounded-lg bg-slate-100/70 border border-slate-200/60 text-[11px] text-slate-500 italic">
+                    <span className="font-semibold text-slate-600 not-italic mr-1">
+                      Konteks:
+                    </span>
+                    &ldquo;{explainedData.context}&rdquo;
+                  </div>
+                )}
+
+                <div className="pt-2 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowExplainModal(false);
+                      setActiveTab("chat");
+                      handleSendMessage(
+                        `Bisa jelaskan lebih dalam mengenai konsep "${explainedData.term}" dan bagaimana penerapannya pada paper ini?`
+                      );
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition shadow-xs cursor-pointer"
+                  >
+                    <span>💬 Tanya Lanjutan di Chat</span>
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

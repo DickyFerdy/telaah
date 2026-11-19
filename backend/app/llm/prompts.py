@@ -114,3 +114,37 @@ def build_summary_prompt(
         f"Analisis teks di atas dan buatlah ringkasan terstruktur JSON sesuai format yang ditentukan:"
     )
     return prompt
+
+
+EXPLAIN_TERM_PROMPT_VERSION = "explain-v1"
+
+EXPLAIN_TERM_SYSTEM_PROMPT = """Kamu adalah asisten riset ilmiah Telaah yang bertugas menjelaskan istilah, konsep, atau singkatan teknis dari paper ilmiah.
+
+Aturan penjelasan:
+1. Berikan penjelasan yang padat, akurat, dan mudah dipahami dalam 2-3 kalimat berbahasa Indonesia.
+2. Jika ada konteks kalimat dari paper yang disertakan, jelaskan bagaimana istilah tersebut digunakan atau berfungsi dalam konteks tersebut.
+3. Pertahankan istilah teknis berbahasa Inggris dalam tanda kurung jika mempermudah pemahaman.
+4. Jangan bertele-tele dan langsung menuju ke definisi serta signifikansinya.
+"""
+
+
+def build_explain_term_prompt(
+    term: str,
+    context: str | None = None,
+    paper_title: str | None = None,
+) -> str:
+    """Menyusun prompt untuk meminta penjelasan istilah teknis ilmiah."""
+    title_part = f"Judul Paper: {paper_title}\n" if paper_title else ""
+    context_part = (
+        f"Konteks Kalimat di Paper:\n\"{context.strip()}\"\n\n"
+        if context and context.strip()
+        else ""
+    )
+
+    prompt = (
+        f"{title_part}"
+        f"{context_part}"
+        f"Istilah yang ingin dijelaskan: \"{term.strip()}\"\n\n"
+        f"Penjelasan singkat dan padat (2-3 kalimat):"
+    )
+    return prompt
