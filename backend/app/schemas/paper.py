@@ -1,11 +1,11 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ArxivImportRequest(BaseModel):
-    arxiv_url: str
+    arxiv_url: str = Field(..., min_length=3, max_length=500)
 
 
 class PaperResponse(BaseModel):

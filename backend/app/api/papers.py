@@ -198,9 +198,8 @@ async def get_paper_pdf(
             detail="File PDF fisik tidak ditemukan di server",
         )
 
-    filename = paper.source_ref or f"{paper.id}.pdf"
-    if not filename.endswith(".pdf"):
-        filename += ".pdf"
+    raw_name = Path(paper.source_ref).name if paper.source_ref else f"{paper.id}.pdf"
+    filename = raw_name if raw_name.endswith(".pdf") else f"{raw_name}.pdf"
 
     return FileResponse(
         path=str(file_path),
