@@ -74,8 +74,10 @@ uploads/
 .DS_Store
 Thumbs.db
 
-# Documentation & spec markdown files (keep only README.md)
+# Documentation & spec markdown files (keep only README.md and evaluation reports)
 *.md
 !README.md
+!EVAL.md
+!DECISIONS.md
 
 

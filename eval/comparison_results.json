@@ -1,0 +1,222 @@
+{
+  "timestamp": "2026-11-19 20:18:10",
+  "comparison": {
+    "vector_only": {
+      "label": "Vektor Saja (Dense)",
+      "summary": {
+        "total_queries": 30,
+        "avg_token_f1": 0.8898,
+        "avg_rouge_l": 0.8898,
+        "refusal_accuracy": 1.0,
+        "avg_citation_page_recall": 0.45,
+        "avg_grounding_rate": 1.0,
+        "latency_ms": {
+          "mean": 0.42,
+          "p50": 0.39,
+          "p95": 0.62,
+          "retrieval_mean": 0.42,
+          "generation_mean": 0.0
+        },
+        "tokens": {
+          "total_input": 26570,
+          "total_output": 794,
+          "avg_input_per_query": 885.7,
+          "avg_output_per_query": 26.5
+        },
+        "cost_usd": {
+          "total": 0.002231,
+          "avg_per_query": 7.4e-05
+        },
+        "by_category": {
+          "factual": {
+            "count": 15,
+            "avg_token_f1": 0.9717,
+            "avg_rouge_l": 0.9717,
+            "avg_citation_recall": 0.2333
+          },
+          "reasoning": {
+            "count": 5,
+            "avg_token_f1": 0.9762,
+            "avg_rouge_l": 0.9762,
+            "avg_citation_recall": 0.0
+          },
+          "table_figure": {
+            "count": 5,
+            "avg_token_f1": 0.9629,
+            "avg_rouge_l": 0.9629,
+            "avg_citation_recall": 1.0
+          },
+          "unanswerable": {
+            "count": 5,
+            "avg_token_f1": 0.4842,
+            "avg_rouge_l": 0.4842,
+            "avg_citation_recall": 1.0
+          }
+        }
+      }
+    },
+    "bm25_only": {
+      "label": "Kata Kunci Saja (BM25)",
+      "summary": {
+        "total_queries": 30,
+        "avg_token_f1": 0.8898,
+        "avg_rouge_l": 0.8898,
+        "refusal_accuracy": 1.0,
+        "avg_citation_page_recall": 0.8167,
+        "avg_grounding_rate": 1.0,
+        "latency_ms": {
+          "mean": 0.12,
+          "p50": 0.11,
+          "p95": 0.16,
+          "retrieval_mean": 0.12,
+          "generation_mean": 0.0
+        },
+        "tokens": {
+          "total_input": 27843,
+          "total_output": 794,
+          "avg_input_per_query": 928.1,
+          "avg_output_per_query": 26.5
+        },
+        "cost_usd": {
+          "total": 0.002326,
+          "avg_per_query": 7.8e-05
+        },
+        "by_category": {
+          "factual": {
+            "count": 15,
+            "avg_token_f1": 0.9717,
+            "avg_rouge_l": 0.9717,
+            "avg_citation_recall": 0.8333
+          },
+          "reasoning": {
+            "count": 5,
+            "avg_token_f1": 0.9762,
+            "avg_rouge_l": 0.9762,
+            "avg_citation_recall": 0.4
+          },
+          "table_figure": {
+            "count": 5,
+            "avg_token_f1": 0.9629,
+            "avg_rouge_l": 0.9629,
+            "avg_citation_recall": 1.0
+          },
+          "unanswerable": {
+            "count": 5,
+            "avg_token_f1": 0.4842,
+            "avg_rouge_l": 0.4842,
+            "avg_citation_recall": 1.0
+          }
+        }
+      }
+    },
+    "hybrid": {
+      "label": "Vektor + BM25 (RRF)",
+      "summary": {
+        "total_queries": 30,
+        "avg_token_f1": 0.8898,
+        "avg_rouge_l": 0.8898,
+        "refusal_accuracy": 1.0,
+        "avg_citation_page_recall": 0.6833,
+        "avg_grounding_rate": 1.0,
+        "latency_ms": {
+          "mean": 0.52,
+          "p50": 0.49,
+          "p95": 0.6,
+          "retrieval_mean": 0.52,
+          "generation_mean": 0.0
+        },
+        "tokens": {
+          "total_input": 26968,
+          "total_output": 794,
+          "avg_input_per_query": 898.9,
+          "avg_output_per_query": 26.5
+        },
+        "cost_usd": {
+          "total": 0.002261,
+          "avg_per_query": 7.5e-05
+        },
+        "by_category": {
+          "factual": {
+            "count": 15,
+            "avg_token_f1": 0.9717,
+            "avg_rouge_l": 0.9717,
+            "avg_citation_recall": 0.6333
+          },
+          "reasoning": {
+            "count": 5,
+            "avg_token_f1": 0.9762,
+            "avg_rouge_l": 0.9762,
+            "avg_citation_recall": 0.2
+          },
+          "table_figure": {
+            "count": 5,
+            "avg_token_f1": 0.9629,
+            "avg_rouge_l": 0.9629,
+            "avg_citation_recall": 1.0
+          },
+          "unanswerable": {
+            "count": 5,
+            "avg_token_f1": 0.4842,
+            "avg_rouge_l": 0.4842,
+            "avg_citation_recall": 1.0
+          }
+        }
+      }
+    },
+    "hybrid_rerank": {
+      "label": "Hybrid + Reranking",
+      "summary": {
+        "total_queries": 30,
+        "avg_token_f1": 0.8898,
+        "avg_rouge_l": 0.8898,
+        "refusal_accuracy": 1.0,
+        "avg_citation_page_recall": 0.85,
+        "avg_grounding_rate": 1.0,
+        "latency_ms": {
+          "mean": 0.93,
+          "p50": 0.86,
+          "p95": 1.17,
+          "retrieval_mean": 0.93,
+          "generation_mean": 0.0
+        },
+        "tokens": {
+          "total_input": 28206,
+          "total_output": 794,
+          "avg_input_per_query": 940.2,
+          "avg_output_per_query": 26.5
+        },
+        "cost_usd": {
+          "total": 0.002354,
+          "avg_per_query": 7.8e-05
+        },
+        "by_category": {
+          "factual": {
+            "count": 15,
+            "avg_token_f1": 0.9717,
+            "avg_rouge_l": 0.9717,
+            "avg_citation_recall": 0.8333
+          },
+          "reasoning": {
+            "count": 5,
+            "avg_token_f1": 0.9762,
+            "avg_rouge_l": 0.9762,
+            "avg_citation_recall": 0.6
+          },
+          "table_figure": {
+            "count": 5,
+            "avg_token_f1": 0.9629,
+            "avg_rouge_l": 0.9629,
+            "avg_citation_recall": 1.0
+          },
+          "unanswerable": {
+            "count": 5,
+            "avg_token_f1": 0.4842,
+            "avg_rouge_l": 0.4842,
+            "avg_citation_recall": 1.0
+          }
+        }
+      }
+    }
+  },
+  "markdown_table": "| Konfigurasi | Akurasi (F1) | ROUGE-L | Sitasi (Recall) | Penolakan Benar | p50 Latency | Mean Latency | Biaya / Query |\n|---|---|---|---|---|---|---|---|\n| **Vektor Saja (Dense)** | 88.98% | 88.98% | 45.00% | 100.00% | 0.4 ms | 0.4 ms | $0.000074 |\n| **Kata Kunci Saja (BM25)** | 88.98% | 88.98% | 81.67% | 100.00% | 0.1 ms | 0.1 ms | $0.000078 |\n| **Vektor + BM25 (RRF)** | 88.98% | 88.98% | 68.33% | 100.00% | 0.5 ms | 0.5 ms | $0.000075 |\n| **Hybrid + Reranking** | 88.98% | 88.98% | 85.00% | 100.00% | 0.9 ms | 0.9 ms | $0.000078 |"
+}
