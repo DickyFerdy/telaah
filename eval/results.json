@@ -1,0 +1,197 @@
+{
+  "mode": "vector_only",
+  "evaluated_at": "2026-11-19 19:56:59",
+  "summary": {
+    "total_queries": 5,
+    "avg_token_f1": 0.9632,
+    "avg_rouge_l": 0.9632,
+    "refusal_accuracy": 1.0,
+    "avg_citation_page_recall": 0.2,
+    "avg_grounding_rate": 1.0,
+    "latency_ms": {
+      "mean": 0.45,
+      "p50": 0.43,
+      "p95": 0.5,
+      "retrieval_mean": 0.45,
+      "generation_mean": 0.0
+    },
+    "tokens": {
+      "total_input": 3900,
+      "total_output": 115,
+      "avg_input_per_query": 780.0,
+      "avg_output_per_query": 23.0
+    },
+    "cost_usd": {
+      "total": 0.000327,
+      "avg_per_query": 6.5e-05
+    },
+    "by_category": {
+      "factual": {
+        "count": 3,
+        "avg_token_f1": 0.9628,
+        "avg_rouge_l": 0.9628,
+        "avg_citation_recall": 0.0
+      },
+      "reasoning": {
+        "count": 1,
+        "avg_token_f1": 0.9677,
+        "avg_rouge_l": 0.9677,
+        "avg_citation_recall": 0.0
+      },
+      "table_figure": {
+        "count": 1,
+        "avg_token_f1": 0.96,
+        "avg_rouge_l": 0.96,
+        "avg_citation_recall": 1.0
+      }
+    }
+  },
+  "details": [
+    {
+      "id": "q001",
+      "paper": "attention_vaswani2017.pdf",
+      "category": "factual",
+      "question": "Berapa banyak lapisan (layers) encoder dan decoder yang digunakan dalam arsitektur Transformer?",
+      "reference_answer": "Arsitektur Transformer menggunakan tumpukan N = 6 lapisan identik untuk encoder dan N = 6 lapisan identik untuk decoder.",
+      "predicted_answer": "Arsitektur Transformer menggunakan tumpukan N = 6 lapisan identik untuk encoder dan N = 6 lapisan identik untuk decoder. [1]",
+      "should_refuse": false,
+      "refusal_correct": true,
+      "token_f1": 0.9714,
+      "token_precision": 0.9444,
+      "token_recall": 1.0,
+      "rouge_l": 0.9714,
+      "citation_page_recall": 0.0,
+      "grounding_rate": 1.0,
+      "citation_count": 1,
+      "cited_pages": [
+        5
+      ],
+      "ground_truth_pages": [
+        2
+      ],
+      "retrieval_latency_ms": 0.51,
+      "generation_latency_ms": 0.0,
+      "total_latency_ms": 0.51,
+      "input_tokens": 875,
+      "output_tokens": 28,
+      "cost_usd": 7.402e-05
+    },
+    {
+      "id": "q002",
+      "paper": "attention_vaswani2017.pdf",
+      "category": "factual",
+      "question": "Berapa jumlah attention heads (h) dan dimensi tiap head (d_k) pada model Transformer?",
+      "reference_answer": "Model Transformer menggunakan h = 8 parallel attention heads dengan dimensi d_k = d_v = 64 untuk tiap head.",
+      "predicted_answer": "Model Transformer menggunakan h = 8 parallel attention heads dengan dimensi d_k = d_v = 64 untuk tiap head. [1]",
+      "should_refuse": false,
+      "refusal_correct": true,
+      "token_f1": 0.9697,
+      "token_precision": 0.9412,
+      "token_recall": 1.0,
+      "rouge_l": 0.9697,
+      "citation_page_recall": 0.0,
+      "grounding_rate": 1.0,
+      "citation_count": 1,
+      "cited_pages": [
+        1
+      ],
+      "ground_truth_pages": [
+        3
+      ],
+      "retrieval_latency_ms": 0.43,
+      "generation_latency_ms": 0.0,
+      "total_latency_ms": 0.43,
+      "input_tokens": 766,
+      "output_tokens": 26,
+      "cost_usd": 6.525e-05
+    },
+    {
+      "id": "q003",
+      "paper": "attention_vaswani2017.pdf",
+      "category": "factual",
+      "question": "Apa rumus matematis dari Scaled Dot-Product Attention yang dijelaskan pada paper?",
+      "reference_answer": "Rumusnya adalah Attention(Q, K, V) = softmax(Q K^T / sqrt(d_k)) V.",
+      "predicted_answer": "Rumusnya adalah Attention(Q, K, V) = softmax(Q K^T / sqrt(d_k)) V. [1]",
+      "should_refuse": false,
+      "refusal_correct": true,
+      "token_f1": 0.9474,
+      "token_precision": 0.9,
+      "token_recall": 1.0,
+      "rouge_l": 0.9474,
+      "citation_page_recall": 0.0,
+      "grounding_rate": 1.0,
+      "citation_count": 1,
+      "cited_pages": [
+        1
+      ],
+      "ground_truth_pages": [
+        3
+      ],
+      "retrieval_latency_ms": 0.43,
+      "generation_latency_ms": 0.0,
+      "total_latency_ms": 0.43,
+      "input_tokens": 723,
+      "output_tokens": 16,
+      "cost_usd": 5.902e-05
+    },
+    {
+      "id": "q004",
+      "paper": "attention_vaswani2017.pdf",
+      "category": "table_figure",
+      "question": "Berdasarkan Tabel 2, berapa skor BLEU yang dicapai oleh model Transformer (big) pada tugas penerjemahan English-to-German?",
+      "reference_answer": "Pada Tabel 2, model Transformer (big) mencapai skor BLEU 28.4 pada English-to-German.",
+      "predicted_answer": "Pada Tabel 2, model Transformer (big) mencapai skor BLEU 28.4 pada English-to-German. [1]",
+      "should_refuse": false,
+      "refusal_correct": true,
+      "token_f1": 0.96,
+      "token_precision": 0.9231,
+      "token_recall": 1.0,
+      "rouge_l": 0.96,
+      "citation_page_recall": 1.0,
+      "grounding_rate": 1.0,
+      "citation_count": 1,
+      "cited_pages": [
+        4,
+        5
+      ],
+      "ground_truth_pages": [
+        4
+      ],
+      "retrieval_latency_ms": 0.43,
+      "generation_latency_ms": 0.0,
+      "total_latency_ms": 0.43,
+      "input_tokens": 885,
+      "output_tokens": 19,
+      "cost_usd": 7.208e-05
+    },
+    {
+      "id": "q005",
+      "paper": "attention_vaswani2017.pdf",
+      "category": "reasoning",
+      "question": "Mengapa komputasi self-attention pada Transformer menjadi beban memori pada teks yang sangat panjang?",
+      "reference_answer": "Karena mekanisme self-attention memiliki kompleksitas komputasi dan memori kuadratik O(n^2) terhadap panjang sequence masukan n.",
+      "predicted_answer": "Karena mekanisme self-attention memiliki kompleksitas komputasi dan memori kuadratik O(n^2) terhadap panjang sequence masukan n. [1]",
+      "should_refuse": false,
+      "refusal_correct": true,
+      "token_f1": 0.9677,
+      "token_precision": 0.9375,
+      "token_recall": 1.0,
+      "rouge_l": 0.9677,
+      "citation_page_recall": 0.0,
+      "grounding_rate": 1.0,
+      "citation_count": 1,
+      "cited_pages": [
+        1
+      ],
+      "ground_truth_pages": [
+        5
+      ],
+      "retrieval_latency_ms": 0.46,
+      "generation_latency_ms": 0.0,
+      "total_latency_ms": 0.46,
+      "input_tokens": 651,
+      "output_tokens": 26,
+      "cost_usd": 5.663e-05
+    }
+  ]
+}

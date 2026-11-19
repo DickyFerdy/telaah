@@ -54,9 +54,9 @@ async def rerank_chunks(
         return list(chunks)
 
     api_key = settings.gemini_api_key.strip()
-    if not api_key:
-        logger.warning(
-            "GEMINI_API_KEY tidak disetel. Menggunakan fallback reranking."
+    if not api_key or api_key.startswith("AQ."):
+        logger.info(
+            "GEMINI_API_KEY tidak disetel atau dummy key. Menggunakan fallback reranking."
         )
         return _fallback_rerank(query, chunks, top_n)
 
