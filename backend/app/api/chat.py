@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import get_current_user
 from app.db.models import Conversation, Message, Paper, User
 from app.db.session import async_session_maker, get_db
+from app.llm.citation import validate_citations
 from app.llm.client import stream_generate_answer
 from app.llm.prompts import SYSTEM_PROMPT_V1, build_qa_prompt
 from app.retrieval.hybrid import search_hybrid
@@ -130,6 +131,7 @@ async def chat_with_paper(
                 yield f"event: delta\ndata: {json.dumps({'delta': chunk_token})}\n\n"
 
             full_answer = "".join(assistant_text_parts).strip()
+            _, validated_citations = validate_citations(full_answer, context_data)
 
             # Simpan pesan asisten ke database menggunakan session baru
             async with async_session_maker() as save_db:
@@ -138,14 +140,16 @@ async def chat_with_paper(
                     conversation_id=conv_id,
                     role="assistant",
                     content=full_answer,
-                    citations=context_data,
+                    citations=validated_citations,
                 )
                 save_db.add(assistant_msg)
                 await save_db.commit()
                 msg_id = str(assistant_msg.id)
 
             # Event 3: Selesai
-            yield f"event: done\ndata: {json.dumps({'message_id': msg_id, 'conversation_id': str(conv_id)})}\n\n"
+            yield (
+                f"event: done\ndata: {json.dumps({'message_id': msg_id, 'conversation_id': str(conv_id), 'citations': validated_citations})}\n\n"
+            )
 
         except Exception as exc:
             logger.exception("Gagal menghasilkan streaming jawaban chat.")

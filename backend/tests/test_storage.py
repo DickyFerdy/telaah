@@ -1,10 +1,9 @@
 import uuid
 
 import pytest
-from sqlalchemy import func
-
 from app.ingest.chunker import DocumentChunk
 from app.ingest.storage import save_chunks_to_db
+from sqlalchemy import func
 
 
 def test_chunk_tsv_expression_construction() -> None:

@@ -2,6 +2,7 @@ import io
 import uuid
 
 import pytest
+from app.core.config import settings
 from httpx import AsyncClient
 
 
@@ -29,6 +30,9 @@ async def test_chat_nonexistent_paper(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_chat_streaming_success(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Set offline fallback key untuk pengujian
+    monkeypatch.setattr(settings, "gemini_api_key", "")
+
     token = await get_auth_token(client)
 
     # 1. Upload sample PDF
@@ -52,7 +56,8 @@ async def test_chat_streaming_success(client: AsyncClient, monkeypatch: pytest.M
     assert "text/event-stream" in chat_res.headers["content-type"]
 
     body_text = chat_res.text
-    # Pastikan terdapat event context, delta, dan done
+    # Pastikan terdapat event context, delta, dan done dengan citations
     assert "event: context" in body_text
     assert "event: delta" in body_text
     assert "event: done" in body_text
+    assert "citations" in body_text

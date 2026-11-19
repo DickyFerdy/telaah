@@ -1,11 +1,10 @@
 import uuid
 
 import pytest
-from httpx import Request, Response
-
 from app.core.config import settings
 from app.retrieval.reranker import rerank_chunks
 from app.retrieval.vector import RetrievedChunk
+from httpx import Request, Response
 
 
 def make_chunk(text: str, score: float = 0.5) -> RetrievedChunk:

@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock
 
 import pymupdf
 import pytest
-
 from app.db.models import Paper
 from app.ingest.pipeline import run_ingest_pipeline
 

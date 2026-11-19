@@ -1,8 +1,7 @@
 import pytest
-from httpx import Request, Response
-
 from app.core.config import settings
 from app.ingest.embedder import EMBEDDING_DIM, embed
+from httpx import Request, Response
 
 
 @pytest.mark.asyncio

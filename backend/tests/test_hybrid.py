@@ -2,7 +2,6 @@ import uuid
 from unittest.mock import AsyncMock
 
 import pytest
-
 from app.db.models import Chunk
 from app.retrieval.hybrid import reciprocal_rank_fusion, search_hybrid
 from app.retrieval.keyword import search_keyword

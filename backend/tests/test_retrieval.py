@@ -2,7 +2,6 @@ import uuid
 from unittest.mock import AsyncMock
 
 import pytest
-
 from app.db.models import Chunk
 from app.retrieval.vector import RetrievedChunk, search_vector
 

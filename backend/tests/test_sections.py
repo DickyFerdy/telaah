@@ -1,5 +1,4 @@
 import pytest
-
 from app.ingest.parser import PageData, ParsedDocument, TextBlock
 from app.ingest.sections import (
     SectionType,

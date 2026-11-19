@@ -1,6 +1,9 @@
 from collections.abc import AsyncGenerator
 
 import pytest
+from app.core.config import settings
+from app.db.session import get_db
+from app.main import app
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -9,9 +12,8 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import NullPool
 
-from app.core.config import settings
-from app.db.session import get_db
-from app.main import app
+# Pastikan default testing berjalan offline dengan synthetic embeddings / fallback
+settings.gemini_api_key = ""
 
 test_engine = create_async_engine(
     settings.database_url,

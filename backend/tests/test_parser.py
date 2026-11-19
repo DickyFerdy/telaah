@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pymupdf
 import pytest
-
 from app.ingest.parser import parse_pdf
 
 
