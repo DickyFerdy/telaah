@@ -387,5 +387,49 @@ async def test_delete_nonexistent_paper(client: AsyncClient) -> None:
     assert del_res.status_code == 404
 
 
+@pytest.mark.asyncio
+async def test_get_paper_pdf_success(client: AsyncClient) -> None:
+    token = await get_authenticated_token(client)
+    pdf_content = b"%PDF-1.4 test binary stream for pdf viewer"
+
+    upload_res = await client.post(
+        "/papers",
+        headers={"Authorization": f"Bearer {token}"},
+        files={"file": ("view_test.pdf", io.BytesIO(pdf_content), "application/pdf")},
+    )
+    assert upload_res.status_code == 201
+    paper_id = upload_res.json()["id"]
+
+    pdf_res = await client.get(
+        f"/papers/{paper_id}/pdf",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert pdf_res.status_code == 200
+    assert "application/pdf" in pdf_res.headers["content-type"]
+    assert pdf_res.content == pdf_content
+
+
+@pytest.mark.asyncio
+async def test_get_paper_pdf_isolation(client: AsyncClient) -> None:
+    token_a = await get_authenticated_token(client)
+    token_b = await get_authenticated_token(client)
+    pdf_content = b"%PDF-1.4 isolation test"
+
+    upload_res = await client.post(
+        "/papers",
+        headers={"Authorization": f"Bearer {token_a}"},
+        files={"file": ("iso_test.pdf", io.BytesIO(pdf_content), "application/pdf")},
+    )
+    paper_id = upload_res.json()["id"]
+
+    # User B should NOT be able to access User A's PDF
+    pdf_res = await client.get(
+        f"/papers/{paper_id}/pdf",
+        headers={"Authorization": f"Bearer {token_b}"},
+    )
+    assert pdf_res.status_code == 404
+
+
+
 
 

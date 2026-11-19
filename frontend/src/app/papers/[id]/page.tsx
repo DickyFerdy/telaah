@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import PdfViewer from "@/components/PdfViewer";
 import {
   Citation,
   ChatMessage,
@@ -326,45 +327,13 @@ function PaperWorkspaceContent() {
 
       {/* Main Split Layout: Kiri PDF Viewer, Kanan Chat Interface */}
       <main className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Panel Kiri: Wadah PDF Viewer (Akan dihubungkan di item berikutnya) */}
+        {/* Panel Kiri: PDF Viewer Interaktif dengan Sitasi */}
         <section className="hidden md:flex flex-1 flex-col border-r border-slate-200 bg-slate-200/50 relative overflow-hidden">
-          <div className="h-10 border-b border-slate-200 bg-white/80 px-4 flex items-center justify-between text-xs text-slate-600 font-medium">
-            <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-rose-600" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" />
-              </svg>
-              <span>Dokumen PDF: {paper.source_ref || "paper.pdf"}</span>
-            </div>
-            {selectedCitation && (
-              <span className="text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                Fokus Sitasi [{selectedCitation.citation_number}] (Hal {selectedCitation.page_start || 1})
-              </span>
-            )}
-          </div>
-
-          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-500">
-            <div className="w-16 h-16 rounded-2xl bg-white shadow-sm border border-slate-200 flex items-center justify-center mb-4 text-slate-400">
-              <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <h3 className="text-base font-semibold text-slate-800 mb-1">
-              PDF Viewer Interaktif
-            </h3>
-            <p className="text-xs text-slate-500 max-w-sm mb-4">
-              Komponen PDF.js / react-pdf siap disinkronisasikan. Saat Anda mengklik sitasi bernomor di panel chat kanan, dokumen akan langsung melompat ke halaman terkait dan menyorot teks asli secara presisi.
-            </p>
-            {selectedCitation && (
-              <div className="p-3 bg-white rounded-lg border border-blue-200 text-left max-w-md shadow-sm">
-                <div className="text-xs font-bold text-blue-700 mb-1">
-                  Cuplikan Sitasi [{selectedCitation.citation_number}] (Bagian: {selectedCitation.section || "Umum"}, Hlm {selectedCitation.page_start})
-                </div>
-                <p className="text-xs text-slate-600 italic">
-                  &ldquo;{selectedCitation.snippet}&rdquo;
-                </p>
-              </div>
-            )}
-          </div>
+          <PdfViewer
+            paperId={paperId}
+            selectedCitation={selectedCitation}
+            onClearCitation={() => setSelectedCitation(null)}
+          />
         </section>
 
         {/* Panel Kanan: Chat Interface dengan Streaming */}

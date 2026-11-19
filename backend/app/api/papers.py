@@ -11,6 +11,7 @@ from fastapi import (
     UploadFile,
     status,
 )
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -168,6 +169,41 @@ async def get_paper(
             detail="Paper tidak ditemukan",
         )
     return PaperResponse.model_validate(paper)
+
+
+@router.get("/{paper_id}/pdf")
+async def get_paper_pdf(
+    paper_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> FileResponse:
+    query = select(Paper).where(
+        Paper.id == paper_id, Paper.user_id == current_user.id
+    )
+    result = await db.execute(query)
+    paper = result.scalar_one_or_none()
+    if not paper:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Paper tidak ditemukan",
+        )
+
+    file_path = Path(paper.file_path)
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File PDF fisik tidak ditemukan di server",
+        )
+
+    filename = paper.source_ref or f"{paper.id}.pdf"
+    if not filename.endswith(".pdf"):
+        filename += ".pdf"
+
+    return FileResponse(
+        path=str(file_path),
+        media_type="application/pdf",
+        filename=filename,
+    )
 
 
 @router.delete("/{paper_id}", status_code=status.HTTP_204_NO_CONTENT)
