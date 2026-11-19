@@ -21,14 +21,6 @@ async def get_authenticated_token(client: AsyncClient) -> str:
     return login_res.json()["access_token"]
 
 
-@pytest.fixture(autouse=True)
-def mock_ingest_pipeline(monkeypatch: pytest.MonkeyPatch) -> None:
-    async def dummy_pipeline(paper_id: uuid.UUID) -> None:
-        pass
-
-    monkeypatch.setattr("app.api.papers.run_ingest_pipeline", dummy_pipeline)
-
-
 @pytest.mark.asyncio
 async def test_upload_pdf_success(client: AsyncClient) -> None:
     token = await get_authenticated_token(client)

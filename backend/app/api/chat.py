@@ -14,6 +14,7 @@ from app.db.models import Conversation, Message, Paper, User
 from app.db.session import async_session_maker, get_db
 from app.llm.citation import validate_citations
 from app.llm.client import stream_generate_answer
+from app.llm.not_found import NOT_FOUND_DEFAULT_MESSAGE, is_not_found_response
 from app.llm.prompts import SYSTEM_PROMPT_V1, build_qa_prompt
 from app.retrieval.hybrid import search_hybrid
 from app.schemas.chat import ChatRequest
@@ -119,6 +120,26 @@ async def chat_with_paper(
         # Event 1: Mengirim metadata context chunks
         yield f"event: context\ndata: {json.dumps(context_data)}\n\n"
 
+        # Jalur cepat: Jika tidak ada konteks teks sama sekali dari paper
+        if not retrieved_chunks:
+            yield f"event: delta\ndata: {json.dumps({'delta': NOT_FOUND_DEFAULT_MESSAGE})}\n\n"
+            async with async_session_maker() as save_db:
+                assistant_msg = Message(
+                    id=uuid.uuid4(),
+                    conversation_id=conv_id,
+                    role="assistant",
+                    content=NOT_FOUND_DEFAULT_MESSAGE,
+                    citations=[],
+                )
+                save_db.add(assistant_msg)
+                await save_db.commit()
+                msg_id = str(assistant_msg.id)
+
+            yield (
+                f"event: done\ndata: {json.dumps({'message_id': msg_id, 'conversation_id': str(conv_id), 'citations': [], 'not_found': True})}\n\n"
+            )
+            return
+
         assistant_text_parts: list[str] = []
 
         try:
@@ -131,6 +152,7 @@ async def chat_with_paper(
                 yield f"event: delta\ndata: {json.dumps({'delta': chunk_token})}\n\n"
 
             full_answer = "".join(assistant_text_parts).strip()
+            not_found = is_not_found_response(full_answer)
             _, validated_citations = validate_citations(full_answer, context_data)
 
             # Simpan pesan asisten ke database menggunakan session baru
@@ -148,7 +170,7 @@ async def chat_with_paper(
 
             # Event 3: Selesai
             yield (
-                f"event: done\ndata: {json.dumps({'message_id': msg_id, 'conversation_id': str(conv_id), 'citations': validated_citations})}\n\n"
+                f"event: done\ndata: {json.dumps({'message_id': msg_id, 'conversation_id': str(conv_id), 'citations': validated_citations, 'not_found': not_found})}\n\n"
             )
 
         except Exception as exc:
