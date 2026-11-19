@@ -481,12 +481,12 @@ export default function PapersPage() {
                     <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
                       <StatusBadge paper={p} />
                       {p.status === "ready" && (
-                        <button
-                          onClick={() => alert("Fitur chat dan viewer PDF akan aktif di Fase 3!")}
+                        <Link
+                          href={`/papers/${p.id}`}
                           className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition"
                         >
                           Buka Paper
-                        </button>
+                        </Link>
                       )}
                       <button
                         onClick={() =>

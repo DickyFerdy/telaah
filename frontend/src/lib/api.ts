@@ -151,6 +151,142 @@ export async function deletePaper(id: string): Promise<void> {
   });
 }
 
+export interface BoundingBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface Citation {
+  citation_number: number;
+  chunk_id: string;
+  section: string | null;
+  page_start: number | null;
+  page_end: number | null;
+  bbox: BoundingBox | null;
+  snippet: string;
+  verified: boolean;
+}
+
+export interface RetrievedContextChunk {
+  index: number;
+  chunk_id: string;
+  section: string | null;
+  page_start: number | null;
+  page_end: number | null;
+  text: string;
+  bbox: BoundingBox | null;
+  similarity_score?: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  citations?: Citation[];
+  not_found?: boolean;
+  context_chunks?: RetrievedContextChunk[];
+  created_at?: string;
+}
+
+export async function streamPaperChat(
+  paperId: string,
+  message: string,
+  callbacks: {
+    onContext?: (chunks: RetrievedContextChunk[]) => void;
+    onDelta?: (token: string) => void;
+    onDone?: (data: {
+      message_id: string;
+      conversation_id?: string;
+      citations: Citation[];
+      not_found?: boolean;
+    }) => void;
+    onError?: (err: string) => void;
+  },
+  signal?: AbortSignal
+): Promise<void> {
+  const token = getStoredToken();
+  const headers = new Headers();
+  headers.set("Content-Type", "application/json");
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const url = `${API_URL}/papers/${paperId}/chat`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ message }),
+    signal,
+  });
+
+  if (!response.ok) {
+    let errorMsg = `HTTP error ${response.status}`;
+    try {
+      const errJson = await response.json();
+      if (errJson.detail) errorMsg = errJson.detail;
+    } catch {
+      // not JSON
+    }
+    throw new Error(errorMsg);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error("Respons server tidak mendukung ReadableStream");
+  }
+
+  const decoder = new TextDecoder("utf-8");
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split("\n\n");
+    buffer = events.pop() || "";
+
+    for (const evtBlock of events) {
+      if (!evtBlock.trim()) continue;
+
+      let eventType = "message";
+      let dataStr = "";
+
+      const lines = evtBlock.split("\n");
+      for (const line of lines) {
+        if (line.startsWith("event:")) {
+          eventType = line.replace("event:", "").trim();
+        } else if (line.startsWith("data:")) {
+          dataStr = line.replace("data:", "").trim();
+        }
+      }
+
+      if (!dataStr) continue;
+
+      try {
+        const parsed = JSON.parse(dataStr);
+        if (eventType === "context") {
+          callbacks.onContext?.(parsed as RetrievedContextChunk[]);
+        } else if (eventType === "delta") {
+          if (parsed.delta) {
+            callbacks.onDelta?.(parsed.delta);
+          }
+        } else if (eventType === "done") {
+          callbacks.onDone?.(parsed);
+        } else if (eventType === "error") {
+          callbacks.onError?.(
+            parsed.error || "Terjadi kesalahan saat streaming jawaban"
+          );
+        }
+      } catch (err) {
+        console.error("Gagal parse SSE JSON data:", err, dataStr);
+      }
+    }
+  }
+}
+
 
 
 
