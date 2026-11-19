@@ -5,6 +5,7 @@ from app.api.auth import router as auth_router
 from app.api.chat import router as chat_router
 from app.api.health import router as health_router
 from app.api.papers import router as papers_router
+from app.api.summary import router as summary_router
 from app.core.config import settings
 
 app = FastAPI(
@@ -27,4 +28,5 @@ app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(papers_router)
 app.include_router(chat_router)
+app.include_router(summary_router)
 

@@ -61,3 +61,56 @@ def build_qa_prompt(
         f"Jawaban:"
     )
     return prompt
+
+
+SUMMARY_PROMPT_VERSION = "summary-v1"
+
+SUMMARY_SYSTEM_PROMPT_V1 = """Kamu adalah asisten riset ilmiah terpercaya bernama Telaah.
+Tugasmu adalah menganalisis teks paper ilmiah yang diberikan dan menghasilkan ringkasan terstruktur dalam format JSON.
+
+Format JSON yang dihasilkan WAJIB memiliki kunci-kunci berikut:
+1. "tldr": 1-2 kalimat ringkasan singkat esensi paper dalam bahasa Indonesia yang jelas dan mudah dipahami.
+2. "research_question": Pertanyaan atau permasalahan penelitian utama yang ingin diselesaikan oleh penulis (1-3 kalimat).
+3. "method": Pendekatan, arsitektur, algoritma, atau metodologi yang digunakan dalam penelitian (1-3 kalimat).
+4. "dataset": Dataset, sampel data, atau data eksperimental yang digunakan untuk melatih/menguji metode (1-2 kalimat). Jika tidak disebutkan di paper, isi dengan "Tidak disebutkan".
+5. "metrics": Metrik evaluasi yang digunakan untuk mengukur kinerja (mis. Akurasi, BLEU, F1-score, Latency, dll.) (1-2 kalimat). Jika tidak disebutkan di paper, isi dengan "Tidak disebutkan".
+6. "results": Hasil utama dan temuan terpenting dari eksperimen/penelitian (2-3 kalimat).
+7. "limitations": Batasan penelitian, asumsi, atau kendala yang diakui oleh penulis atau terlihat dari studi (1-3 kalimat). Jika tidak disebutkan di paper, isi dengan "Tidak disebutkan".
+
+Aturan ketat:
+- Tulis ringkasan dalam Bahasa Indonesia yang baik dan komunikatif, namun pertahankan istilah teknis ilmiah dalam bahasa aslinya jika lazim digunakan.
+- Dasarkan HANYA pada konteks teks paper yang disediakan. Jangan mengarang informasi atau berspekulasi di luar teks.
+- Pastikan output adalah JSON yang valid tanpa tanda pembuka/penutup markdown seperti ```json di luar objek JSON.
+"""
+
+
+def build_summary_prompt(
+    paper_title: str | None,
+    section_texts: dict[str, str],
+) -> str:
+    """
+    Menyusun prompt untuk ekstraksi ringkasan terstruktur dari bagian-bagian kunci paper.
+    `section_texts` berisi teks gabungan per bagian (abstract, methodology, experiments_results, conclusion, dsb.).
+    """
+    title_str = f"Judul Paper: {paper_title}\n\n" if paper_title else ""
+
+    sections_formatted = []
+    for section_name, text in section_texts.items():
+        if text.strip():
+            sections_formatted.append(
+                f"=== BAGIAN: {section_name.upper()} ===\n{text.strip()}\n"
+            )
+
+    combined_context = "\n".join(sections_formatted)
+    if not combined_context.strip():
+        combined_context = "Tidak ada teks paper yang tersedia."
+
+    prompt = (
+        f"{title_str}"
+        f"Konteks Teks Paper:\n"
+        f"-------------------\n"
+        f"{combined_context}\n"
+        f"-------------------\n\n"
+        f"Analisis teks di atas dan buatlah ringkasan terstruktur JSON sesuai format yang ditentukan:"
+    )
+    return prompt
