@@ -2,7 +2,15 @@ import uuid
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    HTTPException,
+    UploadFile,
+    status,
+)
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +23,7 @@ from app.ingest.arxiv import (
     fetch_arxiv_metadata,
     parse_arxiv_id,
 )
+from app.ingest.pipeline import run_ingest_pipeline
 from app.ingest.validator import validate_pdf
 from app.schemas.paper import ArxivImportRequest, PaperResponse
 
@@ -28,6 +37,7 @@ router = APIRouter(prefix="/papers", tags=["papers"])
 )
 async def upload_paper(
     file: Annotated[UploadFile, File(description="File PDF paper ilmiah")],
+    background_tasks: BackgroundTasks,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> PaperResponse:
@@ -57,6 +67,9 @@ async def upload_paper(
     await db.commit()
     await db.refresh(paper)
 
+    # 4. Enqueue background ingestion pipeline
+    background_tasks.add_task(run_ingest_pipeline, paper.id)
+
     return PaperResponse.model_validate(paper)
 
 
@@ -67,6 +80,7 @@ async def upload_paper(
 )
 async def import_arxiv_paper(
     payload: ArxivImportRequest,
+    background_tasks: BackgroundTasks,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> PaperResponse:
@@ -115,6 +129,9 @@ async def import_arxiv_paper(
     db.add(paper)
     await db.commit()
     await db.refresh(paper)
+
+    # 7. Enqueue background ingestion pipeline
+    background_tasks.add_task(run_ingest_pipeline, paper.id)
 
     return PaperResponse.model_validate(paper)
 
