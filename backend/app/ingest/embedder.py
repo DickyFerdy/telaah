@@ -54,9 +54,9 @@ async def embed(
         return []
 
     api_key = settings.gemini_api_key.strip()
-    if not api_key:
+    if not api_key or api_key.startswith("AQ.") or settings.environment == "testing":
         logger.warning(
-            "GEMINI_API_KEY tidak disetel. Menggunakan synthetic embeddings untuk pengujian."
+            "GEMINI_API_KEY tidak disetel atau dummy key. Menggunakan synthetic embeddings untuk pengujian."
         )
         return [_generate_synthetic_embedding(t, EMBEDDING_DIM) for t in texts]
 

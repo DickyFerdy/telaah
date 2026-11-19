@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.rate_limit import rate_limit_upload
 from app.core.security import get_current_user
 from app.db.models import Paper, User
 from app.db.session import get_db
@@ -35,6 +36,7 @@ router = APIRouter(prefix="/papers", tags=["papers"])
     "",
     response_model=PaperResponse,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit_upload)],
 )
 async def upload_paper(
     file: Annotated[UploadFile, File(description="File PDF paper ilmiah")],
@@ -78,6 +80,7 @@ async def upload_paper(
     "/arxiv",
     response_model=PaperResponse,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit_upload)],
 )
 async def import_arxiv_paper(
     payload: ArxivImportRequest,

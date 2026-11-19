@@ -4,11 +4,12 @@ import uuid
 from collections.abc import AsyncGenerator
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.rate_limit import rate_limit_chat
 from app.core.security import get_current_user
 from app.db.models import Conversation, Message, Paper, User
 from app.db.session import async_session_maker, get_db
@@ -24,10 +25,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/papers/{paper_id}/chat", tags=["chat"])
 
 
-@router.post("")
+@router.post("", dependencies=[Depends(rate_limit_chat)])
 async def chat_with_paper(
     paper_id: uuid.UUID,
     payload: ChatRequest,
+    request: Request,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> StreamingResponse:
@@ -177,14 +179,18 @@ async def chat_with_paper(
             logger.exception("Gagal menghasilkan streaming jawaban chat.")
             yield f"event: error\ndata: {json.dumps({'error': str(exc)})}\n\n"
 
+    resp_headers = {
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
+    }
+    if hasattr(request, "state") and hasattr(request.state, "rate_limit_headers"):
+        resp_headers.update(request.state.rate_limit_headers)
+
     return StreamingResponse(
         sse_event_stream(),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
+        headers=resp_headers,
     )
 
 

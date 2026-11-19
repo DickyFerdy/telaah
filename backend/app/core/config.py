@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 1440
     storage_path: str = "./storage/papers"
     cors_origins: list[str] = ["http://localhost:3000"]
+    rate_limit_enabled: bool = True
+    rate_limit_upload_max: int = 5
+    rate_limit_upload_window_seconds: int = 60
+    rate_limit_chat_max: int = 20
+    rate_limit_chat_window_seconds: int = 60
 
     model_config = SettingsConfigDict(
         env_file=".env",
